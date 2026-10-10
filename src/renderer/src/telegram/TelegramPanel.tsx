@@ -16,8 +16,13 @@ type Action =
   | { kind: 'link'; msgId: number; label: string; url: string; magnet: boolean }
   | { kind: 'file'; msgId: number; label: string; torrent: boolean }
   | { kind: 'press'; msgId: number; label: string; row: number; col: number }
+  | { kind: 'command'; msgId: number; label: string; command: string }
+
+/** Search-bot listings show only result titles; everything else in that message is noise. */
+const isListing = (m: TgMessage) => m.commands.length > 0
 
 function actionsOf(m: TgMessage): Action[] {
+  if (isListing(m)) return m.commands.map((c) => ({ kind: 'command' as const, msgId: m.id, ...c }))
   return [
     ...(m.file ? [{ kind: 'file' as const, msgId: m.id, label: m.file.name, torrent: m.file.torrent }] : []),
     ...m.links.map((l) => ({ kind: 'link' as const, msgId: m.id, label: l.label, url: l.url, magnet: l.magnet })),
@@ -37,7 +42,14 @@ function formatSize(bytes: number | null): string {
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`
 }
 
-const ICON: Record<string, string> = { torrent: '🧲', file: '⬇', magnet: '🧲', link: '↗', press: '›' }
+const ICON: Record<string, string> = {
+  torrent: '🧲',
+  file: '⬇',
+  magnet: '🧲',
+  link: '↗',
+  press: '›',
+  command: '⬇'
+}
 
 /** Replies from the Telegram peer for one game, with their links, files and bot buttons. */
 export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) {
@@ -53,6 +65,7 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
   const [sel, setSel] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   const [progress, setProgress] = useState<Record<number, number>>({})
+  const [requested, setRequested] = useState<Set<string>>(new Set())
   const listRef = useRef<HTMLDivElement>(null)
   const focused = actions[Math.min(sel, actions.length - 1)]
 
@@ -76,6 +89,11 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
         setProgress(({ [a.msgId]: _, ...rest }) => rest)
         setNote(res.error)
       } else setNote(a.torrent ? 'Torrent aberto no cliente padrão' : `Salvo em ${res.value}`)
+    } else if (a.kind === 'command') {
+      const res = await window.api.telegramCommand(a.command)
+      if (!res.ok) return setNote(res.error)
+      setRequested((s) => new Set(s).add(a.command))
+      setNote('Pedido enviado — o torrent aparece aqui quando o bot responder')
     } else {
       const res = await window.api.telegramPress(a.msgId, a.row, a.col)
       if (!res.ok) setNote(res.error)
@@ -109,29 +127,44 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
         <div className="tg-list" ref={listRef}>
           {groups.map(({ m, acts, start }) => (
             <div key={m.id} className="tg-msg">
-              {m.text && <p className="tg-text">{m.text}</p>}
+              {m.noResults ? (
+                <p className="tg-text muted">Nenhum torrent encontrado. Tente □ para buscar de novo.</p>
+              ) : (
+                m.text && !isListing(m) && <p className="tg-text">{m.text}</p>
+              )}
               {acts.length > 0 && (
                 <div className="tg-actions">
                   {acts.map((a, k) => {
-                      const i = start + k
-                      const icon = a.kind === 'file' ? (a.torrent ? 'torrent' : 'file') : a.kind === 'link' ? (a.magnet ? 'magnet' : 'link') : 'press'
-                      const p = a.kind === 'file' ? progress[a.msgId] : undefined
-                      const size = a.kind === 'file' ? formatSize(m.file?.size ?? null) : ''
-                      return (
-                        <button
-                          key={i}
-                          className={`tg-action ${focused === a ? 'focused' : ''}`}
-                          onClick={() => {
-                            setSel(i)
-                            run(a)
-                          }}
-                        >
-                          <span className="tg-icon">{ICON[icon]}</span>
-                          <span className="tg-label">{a.label}</span>
-                          {size && <span className="muted">{size}</span>}
-                          {p !== undefined && <span className="muted">{p >= 1 ? '✓' : `${Math.round(p * 100)}%`}</span>}
-                        </button>
-                      )
+                    const i = start + k
+                    const icon =
+                      a.kind === 'file'
+                        ? a.torrent
+                          ? 'torrent'
+                          : 'file'
+                        : a.kind === 'link'
+                          ? a.magnet
+                            ? 'magnet'
+                            : 'link'
+                          : a.kind
+                    const p = a.kind === 'file' ? progress[a.msgId] : undefined
+                    const size = a.kind === 'file' ? formatSize(m.file?.size ?? null) : ''
+                    const asked = a.kind === 'command' && requested.has(a.command)
+                    return (
+                      <button
+                        key={i}
+                        className={`tg-action ${focused === a ? 'focused' : ''}`}
+                        onClick={() => {
+                          setSel(i)
+                          run(a)
+                        }}
+                      >
+                        <span className="tg-icon">{ICON[icon]}</span>
+                        <span className="tg-label">{a.label}</span>
+                        {size && <span className="muted">{size}</span>}
+                        {asked && <span className="muted">pedido</span>}
+                        {p !== undefined && <span className="muted">{p >= 1 ? '✓' : `${Math.round(p * 100)}%`}</span>}
+                      </button>
+                    )
                   })}
                 </div>
               )}

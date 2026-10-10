@@ -31,8 +31,13 @@ export function VirtualKeyboard({ value, onChange, onSubmit, onExitRight, onBack
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
-  const type = (s: string) => onChangeRef.current((valueRef.current + s).slice(0, maxLength))
-  const del = () => onChangeRef.current(valueRef.current.slice(0, -1))
+  // Update the ref immediately: a paste types many chars before React re-renders.
+  const set = (v: string) => {
+    valueRef.current = v
+    onChangeRef.current(v)
+  }
+  const type = (s: string) => set((valueRef.current + s).slice(0, maxLength))
+  const del = () => set(valueRef.current.slice(0, -1))
 
   useEffect(() => {
     if (!active) return

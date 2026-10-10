@@ -4,23 +4,30 @@ import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
 import { formatDate, formatPlaytime } from '../format'
 import { useInput } from '../input/useInput'
+import { TelegramPanel } from '../telegram/TelegramPanel'
+import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThread'
 
 interface Props {
   game: Game
   running: boolean
   gamesRoot: string | null
+  /** Telegram peer to query on open; null when Telegram isn't set up. */
+  telegramPeer: string | null
   onLaunch(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
 }
 
-type Item = { id: 'play' | 'identify' | 'remove' | 'back'; label: string; disabled?: boolean }
+type Item = { id: 'play' | 'telegram' | 'identify' | 'remove' | 'back'; label: string; disabled?: boolean }
 
-export function GameDetail({ game, running, gamesRoot, onLaunch, onIdentify, onRemove, onClose }: Props) {
+export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, onIdentify, onRemove, onClose }: Props) {
   const installed = !!game.folder
+  const tg = useTelegramThread(game.title, !!telegramPeer)
+  const [tgOpen, setTgOpen] = useState(false)
   const items: Item[] = [
     ...(installed ? [{ id: 'play', label: running ? 'Em execução' : 'Jogar', disabled: !game.exePath || running } as Item] : []),
+    ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
     ...(!installed ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
     { id: 'back', label: 'Voltar' }
@@ -30,6 +37,7 @@ export function GameDetail({ game, running, gamesRoot, onLaunch, onIdentify, onR
   const run = (it: Item) => {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
+    else if (it.id === 'telegram') setTgOpen(true)
     else if (it.id === 'identify') onIdentify(game)
     else if (it.id === 'remove') onRemove(game)
     else onClose()
@@ -40,7 +48,7 @@ export function GameDetail({ game, running, gamesRoot, onLaunch, onIdentify, onR
     if (a === 'up' || a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'down' || a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') run(items[sel])
-  })
+  }, !tgOpen)
 
   return (
     <div className="overlay">
@@ -102,6 +110,15 @@ export function GameDetail({ game, running, gamesRoot, onLaunch, onIdentify, onR
           { button: '○', label: 'Voltar' }
         ]}
       />
+      {tgOpen && (
+        <TelegramPanel
+          title={game.title}
+          peer={telegramPeer}
+          state={tg.state}
+          onResend={tg.resend}
+          onClose={() => setTgOpen(false)}
+        />
+      )}
     </div>
   )
 }

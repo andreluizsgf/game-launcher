@@ -26,6 +26,17 @@ export function startKeyboard(): () => void {
   const onKey = (e: KeyboardEvent) => {
     setInputMode('keyboard')
     const sink = inputBus.textSink
+    // Paste (Ctrl/Cmd+V) into the open text field — handy for API keys. Read on keydown: macOS never fires
+    // a `paste` event here because no editable element has focus.
+    if (sink && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'v') {
+      e.preventDefault()
+      window.api.readClipboard().then((text) => {
+        // The field may have closed while the clipboard was read.
+        const target = inputBus.textSink
+        if (target) for (const char of text.replace(/[\r\n]+/g, '')) target({ kind: 'char', char })
+      })
+      return
+    }
     if (sink && !e.ctrlKey && !e.metaKey && !e.altKey) {
       if (e.key === 'Backspace') {
         e.preventDefault()
@@ -46,18 +57,8 @@ export function startKeyboard(): () => void {
     e.preventDefault()
     inputBus.emit(a)
   }
-  // Paste (Ctrl/Cmd+V) into the open text field — handy for API keys.
-  const onPaste = (e: ClipboardEvent) => {
-    const sink = inputBus.textSink
-    const text = e.clipboardData?.getData('text')
-    if (!sink || !text) return
-    e.preventDefault()
-    for (const char of text.replace(/[\r\n]+/g, '')) sink({ kind: 'char', char })
-  }
   window.addEventListener('keydown', onKey)
-  window.addEventListener('paste', onPaste)
   return () => {
     window.removeEventListener('keydown', onKey)
-    window.removeEventListener('paste', onPaste)
   }
 }

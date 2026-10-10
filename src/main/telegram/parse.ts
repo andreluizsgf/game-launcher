@@ -1,4 +1,4 @@
-import type { TgButton, TgFile, TgLink } from '@shared/types'
+import type { TgButton, TgCommand, TgFile, TgLink } from '@shared/types'
 
 /** Minimal views of GramJS objects, so parsing stays testable without a client. */
 export interface RawEntity {
@@ -78,7 +78,43 @@ export function extractButtons(buttons: RawButton[][] = []): TgButton[] {
   return out
 }
 
-export function describeFile(name: string | null | undefined, mime: string | null | undefined, size: number | null): TgFile {
+const DOWNLOAD_RE = /(?:^|\s)(\/download\w+)/
+
+/**
+ * Search-bot listings: each result is a title line followed by a line with `/download<id>`
+ * (often next to `/cover<id>` and `/readme<id>`). Only the title and the download command are kept.
+ */
+export function extractCommands(text: string): TgCommand[] {
+  const out: TgCommand[] = []
+  let title: string | null = null
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const cmd = DOWNLOAD_RE.exec(line)?.[1]
+    if (cmd) {
+      const rest = line.replace(/\/\w+/g, '').trim()
+      out.push({ command: cmd, label: rest || title || cmd })
+      title = null
+    } else title = line
+  }
+  return out
+}
+
+/** "❌Torrents encontrados: 0❌" — the search bot's empty answer. */
+export function isNoResults(text: string): boolean {
+  return /encontrad[oa]s?\s*:\s*0\b/i.test(text)
+}
+
+/** Only commands parsed from replies are sent; never arbitrary text. */
+export function isBotCommand(text: string): boolean {
+  return /^\/\w{1,64}$/.test(text)
+}
+
+export function describeFile(
+  name: string | null | undefined,
+  mime: string | null | undefined,
+  size: number | null
+): TgFile {
   const n = name?.trim() || 'arquivo'
   return { name: n, size, torrent: /\.torrent$/i.test(n) || mime === 'application/x-bittorrent' }
 }
@@ -90,5 +126,10 @@ export function renderTemplate(template: string, title: string): string {
 
 /** Strips characters that are invalid in Windows/macOS file names. */
 export function safeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/^\.+/, '').slice(0, 180) || 'arquivo'
+  return (
+    name
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+      .replace(/^\.+/, '')
+      .slice(0, 180) || 'arquivo'
+  )
 }

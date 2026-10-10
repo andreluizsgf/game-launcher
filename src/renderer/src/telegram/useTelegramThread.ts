@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TgThread } from '@shared/types'
 
 export type TgState =
-  | { status: 'off' }
-  | { status: 'sending' }
-  | { status: 'error'; error: string }
-  | { status: 'ready'; thread: TgThread }
+  { status: 'off' } | { status: 'sending' } | { status: 'error'; error: string } | { status: 'ready'; thread: TgThread }
 
 /** Sends the title to the Telegram peer while `enabled` and follows the replies as they arrive. */
 export function useTelegramThread(title: string, enabled: boolean) {
@@ -42,6 +39,13 @@ export function useTelegramThread(title: string, enabled: boolean) {
 export function telegramMenuLabel(state: TgState): string {
   if (state.status === 'sending') return 'Telegram…'
   if (state.status === 'error') return 'Telegram · erro'
-  if (state.status === 'ready') return `Telegram · ${state.thread.messages.length}`
+  if (state.status === 'ready') {
+    const msgs = state.thread.messages
+    if (msgs.length === 0) return 'Telegram · aguardando'
+    const results = msgs.reduce((n, m) => n + m.commands.length, 0)
+    // Bots that don't list /download results: count replies instead.
+    if (results === 0 && !msgs.some((m) => m.noResults)) return `Telegram · ${msgs.length}`
+    return `Telegram · ${results}`
+  }
   return 'Telegram'
 }

@@ -97,6 +97,12 @@ export interface TgButton {
   label: string
 }
 
+/** Result listed by a search bot as a title line followed by `/download<id>`; running it sends the command. */
+export interface TgCommand {
+  label: string
+  command: string
+}
+
 export interface TgMessage {
   id: number
   date: number
@@ -104,6 +110,9 @@ export interface TgMessage {
   links: TgLink[]
   file: TgFile | null
   buttons: TgButton[]
+  commands: TgCommand[]
+  /** Search bot answered that nothing was found. */
+  noResults: boolean
 }
 
 /** Replies collected for one query; pushed again every time a message arrives or is edited. */
@@ -150,6 +159,9 @@ export interface LauncherApi {
   /** Downloads a message's file; .torrent files are opened in the default torrent client. */
   telegramDownload(msgId: number): Promise<Result<string>>
   telegramPress(msgId: number, row: number, col: number): Promise<Result<null>>
+  /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
+  telegramCommand(command: string): Promise<Result<null>>
+  readClipboard(): Promise<string>
   onTelegramThread(cb: (t: TgThread) => void): () => void
   onTelegramProgress(cb: (p: TgDownloadProgress) => void): () => void
   onGameEnded(cb: (e: GameEndedEvent) => void): () => void

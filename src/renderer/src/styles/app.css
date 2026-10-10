@@ -356,3 +356,22 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
   pointer-events: none;
 }
 .hints .hint { pointer-events: auto; }
+
+/* Telegram replies */
+.tg-panel { width: min(1040px, 92vw); max-height: 82vh; display: flex; flex-direction: column; }
+.tg-panel h2 { font-size: 34px; font-weight: 300; margin: 0 0 14px; }
+.tg-status { color: var(--fg-dim); font-size: 17px; margin: 0 0 14px; }
+.tg-status.error { color: #ff8a80; }
+.tg-list { overflow-y: auto; display: grid; gap: 14px; padding: 4px 6px 4px 0; }
+.tg-msg { background: rgba(255, 255, 255, 0.06); border-radius: 14px; padding: 16px 20px; }
+.tg-text { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 16px; line-height: 1.45; max-height: 9.5em; overflow: hidden; }
+.tg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.tg-action {
+  display: flex; align-items: center; gap: 10px; max-width: 100%;
+  padding: 10px 16px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.1); color: var(--fg); font: inherit; font-size: 16px;
+  transition: transform 120ms, background 120ms;
+}
+.tg-action.focused { background: var(--fg); color: #0b0d12; transform: scale(1.03); }
+.tg-action.focused .muted { color: rgba(11, 13, 18, 0.6); }
+.tg-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 560px; }

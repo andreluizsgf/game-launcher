@@ -29,8 +29,10 @@ const api: LauncherApi = {
   telegramOpenLink: (url) => ipcRenderer.invoke('telegram:openLink', url),
   telegramDownload: (msgId) => ipcRenderer.invoke('telegram:download', msgId),
   telegramPress: (msgId, row, col) => ipcRenderer.invoke('telegram:press', msgId, row, col),
+  telegramCommand: (command) => ipcRenderer.invoke('telegram:command', command),
   onTelegramThread: (cb) => on<TgThread>('telegram:thread', cb),
   onTelegramProgress: (cb) => on<TgDownloadProgress>('telegram:progress', cb),
+  readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   onGameEnded: (cb) => on<GameEndedEvent>('game:ended', cb),
   onGameStarted: (cb) => on<number>('game:started', cb)
 }

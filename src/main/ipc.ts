@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { join } from 'path'
 import type { CatalogHit, Game, Result, Settings, SettingsPatch, StoreSection, TgLoginStep, TgThread } from '@shared/types'
 import { cacheArt } from './catalog/art'
@@ -200,6 +200,14 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       return fail(err)
     }
   })
+  ipcMain.handle('telegram:command', async (_e, command: string): Promise<Result<null>> => {
+    try {
+      await telegram.command(command)
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
   ipcMain.handle('telegram:press', async (_e, msgId: number, row: number, col: number): Promise<Result<null>> => {
     try {
       await telegram.press(msgId, row, col)
@@ -208,6 +216,8 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       return fail(err)
     }
   })
+
+  ipcMain.handle('clipboard:read', () => clipboard.readText())
 
   ipcMain.handle('settings:pickRoot', async () => {
     const win = getWindow()

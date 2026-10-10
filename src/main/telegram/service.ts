@@ -9,7 +9,18 @@ import { StringSession } from 'telegram/sessions'
 import { getPeerId } from 'telegram/Utils'
 import type { TgDownloadProgress, TgLoginStep, TgMessage, TgThread } from '@shared/types'
 import { decrypt, encrypt, saveSettings, type StoredSettings } from '../settings'
-import { describeFile, extractButtons, extractLinks, isOpenable, renderTemplate, safeFileName, type RawButton } from './parse'
+import {
+  describeFile,
+  extractButtons,
+  extractCommands,
+  extractLinks,
+  isBotCommand,
+  isNoResults,
+  isOpenable,
+  renderTemplate,
+  safeFileName,
+  type RawButton
+} from './parse'
 
 /** Replies arriving this long after the query are still attributed to it. */
 const LISTEN_MS = 3 * 60_000
@@ -19,6 +30,8 @@ const REUSE_MS = 30 * 60_000
 interface Thread {
   query: string
   sentAt: number
+  /** Last time anything was sent for this thread (query or command); replies are accepted after it. */
+  lastSentAt: number
   raw: Map<number, Api.Message>
 }
 
@@ -97,7 +110,7 @@ export class TelegramService {
 
   private onMessage(msg: Api.Message): void {
     const t = this.active
-    if (!t || !this.peerId || msg.out || Date.now() - t.sentAt > LISTEN_MS) return
+    if (!t || !this.peerId || msg.out || Date.now() - t.lastSentAt > LISTEN_MS) return
     if (getPeerId(msg.peerId) !== this.peerId) return
     t.raw.set(msg.id, msg)
     this.events.thread(this.view(t))
@@ -117,7 +130,7 @@ export class TelegramService {
     }
     const c = await this.connected()
     const peer = await this.peer(c)
-    const t: Thread = { query: text, sentAt: Date.now(), raw: new Map() }
+    const t: Thread = { query: text, sentAt: Date.now(), lastSentAt: Date.now(), raw: new Map() }
     this.threads.set(text, t)
     this.active = t
     await c.sendMessage(peer, { message: text })
@@ -149,7 +162,8 @@ export class TelegramService {
     const total = info.size ?? 0
     await c.downloadMedia(msg, {
       outputFile: path,
-      progressCallback: (done) => total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
+      progressCallback: (done) =>
+        total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
     })
     this.events.progress({ msgId, ratio: 1 })
     if (info.torrent) {
@@ -157,6 +171,15 @@ export class TelegramService {
       if (err) shell.showItemInFolder(path)
     } else shell.showItemInFolder(path)
     return path
+  }
+
+  async command(command: string): Promise<void> {
+    const t = this.active
+    if (!t) throw new Error('Busque o jogo de novo')
+    if (!isBotCommand(command)) throw new Error('Comando inválido')
+    const c = await this.connected()
+    t.lastSentAt = Date.now()
+    await c.sendMessage(await this.peer(c), { message: command })
   }
 
   async press(msgId: number, row: number, col: number): Promise<void> {
@@ -255,6 +278,8 @@ function toTgMessage(m: Api.Message): TgMessage {
     text,
     links: extractLinks(text, entities, buttons),
     file: f ? describeFile(f.name, f.mimeType, toNumber(f.size)) : null,
-    buttons: extractButtons(buttons)
+    buttons: extractButtons(buttons),
+    commands: extractCommands(text),
+    noResults: isNoResults(text)
   }
 }

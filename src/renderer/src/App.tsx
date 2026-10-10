@@ -103,6 +103,7 @@ export function App() {
     setTab('games')
     setOverlay({ kind: 'none' })
   }
+  const telegramPeer = settings?.telegramLoggedIn && settings.telegramPeer ? settings.telegramPeer : null
   const detailGame = overlay.kind === 'detail' ? games.find((g) => g.id === overlay.gameId) : undefined
 
   return (
@@ -135,6 +136,7 @@ export function App() {
       {overlay.kind === 'storeDetail' && (
         <StoreDetail
           game={overlay.game}
+          telegramPeer={telegramPeer}
           onAdd={async (sg) => {
             const res = await window.api.catalogAdd(sg.igdbId)
             if (!res.ok) return notify(res.error)
@@ -151,6 +153,7 @@ export function App() {
           game={detailGame}
           running={runningId === detailGame.id}
           gamesRoot={settings?.gamesRoot ?? null}
+          telegramPeer={telegramPeer}
           onLaunch={launch}
           onIdentify={(g) => setOverlay({ kind: 'search', mode: { kind: 'link', game: g } })}
           onRemove={async (g) => {
@@ -195,6 +198,8 @@ export function App() {
             setSettings(await window.api.setIgdbSecret(v))
             notify(v.trim() ? 'Secret salvo' : 'Secret removido')
           }}
+          onSettings={setSettings}
+          notify={notify}
           onClose={() => setOverlay({ kind: 'none' })}
         />
       )}

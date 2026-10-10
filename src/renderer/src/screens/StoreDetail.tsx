@@ -3,17 +3,23 @@ import type { StoreGame } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { formatReleaseDate, ratingTone } from '../format'
 import { useInput } from '../input/useInput'
+import { TelegramPanel } from '../telegram/TelegramPanel'
+import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThread'
 
 interface Props {
   game: StoreGame
+  /** Telegram peer to query on open; null when Telegram isn't set up. */
+  telegramPeer: string | null
   onAdd(g: StoreGame): Promise<void>
   onShowInLibrary(gameId: number): void
   onClose(): void
 }
 
-export function StoreDetail({ game, onAdd, onShowInLibrary, onClose }: Props) {
+export function StoreDetail({ game, telegramPeer, onAdd, onShowInLibrary, onClose }: Props) {
   const [sel, setSel] = useState(0)
   const [busy, setBusy] = useState(false)
+  const tg = useTelegramThread(game.name, !!telegramPeer)
+  const [tgOpen, setTgOpen] = useState(false)
   const upcoming = !!game.releaseDate && game.releaseDate > Date.now()
   const items = [
     game.inLibraryId
@@ -27,6 +33,7 @@ export function StoreDetail({ game, onAdd, onShowInLibrary, onClose }: Props) {
             setBusy(false)
           }
         },
+    ...(telegramPeer ? [{ label: telegramMenuLabel(tg.state), run: () => setTgOpen(true) }] : []),
     { label: 'Voltar', run: onClose }
   ]
 
@@ -35,7 +42,7 @@ export function StoreDetail({ game, onAdd, onShowInLibrary, onClose }: Props) {
     if (a === 'left' || a === 'up') setSel((s) => Math.max(0, s - 1))
     if (a === 'right' || a === 'down') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') items[sel].run()
-  })
+  }, !tgOpen)
 
   return (
     <div className="overlay store-detail-overlay">
@@ -79,6 +86,15 @@ export function StoreDetail({ game, onAdd, onShowInLibrary, onClose }: Props) {
           { button: '○', label: 'Voltar' }
         ]}
       />
+      {tgOpen && (
+        <TelegramPanel
+          title={game.name}
+          peer={telegramPeer}
+          state={tg.state}
+          onResend={tg.resend}
+          onClose={() => setTgOpen(false)}
+        />
+      )}
     </div>
   )
 }
