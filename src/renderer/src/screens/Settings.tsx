@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Result, Settings as S, TgLoginStep } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { TextEntry } from '../components/TextEntry'
@@ -90,6 +90,12 @@ export function Settings(props: Props) {
       : { label: 'Telegram conta', value: 'Entrar', run: () => setEditing('tgPhone'), disabled: !tgReady }
   ]
   const [sel, setSel] = useState(0)
+  const listRef = useRef<HTMLUListElement>(null)
+
+  // The list can be taller than the screen: keep the focused row visible when navigating with the pad.
+  useEffect(() => {
+    listRef.current?.children[sel]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [sel])
 
   useInput((a) => {
     if (a === 'back' || a === 'options') return onClose()
@@ -102,7 +108,7 @@ export function Settings(props: Props) {
     <div className="overlay">
       <div className="settings">
         <h1>Configurações</h1>
-        <ul>
+        <ul ref={listRef}>
           {items.map((it, i) => (
             <li
               key={it.label}
@@ -113,7 +119,10 @@ export function Settings(props: Props) {
               }}
             >
               <span>{it.label}</span>
-              <span className="setting-value">{it.value}</span>
+              <span className="setting-value">
+                {/* bdi: keeps "@" and "/" in place inside the rtl (ellipsis-on-the-left) box */}
+                <bdi>{it.value}</bdi>
+              </span>
             </li>
           ))}
         </ul>

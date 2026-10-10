@@ -142,9 +142,10 @@ button { font: inherit; color: inherit; }
 .menu-item.focused { background: var(--fg); color: #0b0d12; transform: scale(1.04); }
 .menu-item:disabled { opacity: 0.5; }
 
-.settings { width: min(880px, 90vw); }
-.settings h1 { font-size: 40px; font-weight: 300; margin: 0 0 28px; }
-.settings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.settings { width: min(880px, 90vw); max-height: calc(100vh - 140px); display: flex; flex-direction: column; }
+.settings h1 { font-size: 40px; font-weight: 300; margin: 0 0 28px; flex: none; }
+/* Scrolls when the options don't fit (small/scaled screens); padding keeps the focus ring visible. */
+.settings ul { list-style: none; margin: 0; padding: 4px; display: grid; gap: 10px; overflow-y: auto; min-height: 0; }
 .setting {
   display: flex; justify-content: space-between; gap: 24px;
   padding: 20px 28px; border-radius: 14px; font-size: 20px;
@@ -184,7 +185,7 @@ button { font: inherit; color: inherit; }
 }
 .menu { flex-wrap: wrap; }
 
-.settings-note { color: var(--fg-dim); font-size: 14px; line-height: 1.5; margin-top: 20px; }
+.settings-note { flex: none; color: var(--fg-dim); font-size: 14px; line-height: 1.5; margin-top: 20px; }
 
 /* text field + virtual keyboard */
 .overlay.top { z-index: 8; background: rgba(5, 7, 13, 0.92); }

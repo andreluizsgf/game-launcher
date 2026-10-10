@@ -48,7 +48,11 @@ function createWindow(fullscreen: boolean): void {
     }
   })
   grantSonyHid(win)
-  win.once('ready-to-show', () => win?.show())
+  win.once('ready-to-show', () => {
+    win?.show()
+    // Windows sometimes ignores the constructor flag when the window starts hidden.
+    if (fullscreen) win?.setFullScreen(true)
+  })
   win.on('closed', () => (win = null))
   if (process.env.GL_SNAPSHOT) runDevSnapshot(win, process.env.GL_SNAPSHOT)
 
@@ -80,6 +84,8 @@ app.whenReady().then(async () => {
       if (sessionId) repo.endSession(sessionId, game.id, endedAt, seconds)
       if (win) {
         win.restore()
+        // On Windows, minimize → restore drops fullscreen.
+        if (settings.fullscreen && !win.isFullScreen()) win.setFullScreen(true)
         win.focus()
         win.webContents.send('game:ended', { gameId: game.id, seconds })
       }
