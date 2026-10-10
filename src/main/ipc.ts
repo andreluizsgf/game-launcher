@@ -1,5 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
-import { join } from 'path'
+import { statfs } from 'fs/promises'
+import { join, parse, resolve } from 'path'
+import type { StorageInfo } from '@shared/types'
 import type { CatalogHit, Game, Result, Settings, SettingsPatch, StoreSection, TgLoginStep, TgThread } from '@shared/types'
 import { cacheArt } from './catalog/art'
 import { IgdbClient, imageUrl, type IgdbGame } from './catalog/igdb'
@@ -8,7 +10,10 @@ import { mockSections } from './catalog/storeMock'
 import type { CatalogMeta, GamesRepo } from './db/games'
 import { scanRoot } from './library/scanner'
 import type { Runner } from './library/runner'
+import { QbWebApi } from './downloads/qbWebApi'
+import { DownloadWatcher } from './downloads/watcher'
 import {
+  decrypt,
   encrypt,
   igdbCredentials,
   normalizePeer,
@@ -34,10 +39,37 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   const igdb = new IgdbClient(() => igdbCredentials(settings))
   const artDir = join(app.getPath('userData'), 'art')
   const store = new StoreService(igdb, (igdbId) => repo.byIgdbId(igdbId)?.id ?? null)
-  const telegram = new TelegramService(settings, {
-    thread: (t) => getWindow()?.webContents.send('telegram:thread', t),
-    progress: (p) => getWindow()?.webContents.send('telegram:progress', p)
+  const send = (channel: string, payload: unknown) => getWindow()?.webContents.send(channel, payload)
+  const qbWeb = new QbWebApi(() => ({
+    url: settings.qbWebUrl,
+    username: settings.qbWebUser,
+    password: decrypt(settings.qbWebPasswordEnc)
+  }))
+  const downloads = new DownloadWatcher({
+    api: qbWeb,
+    gamesRoot: () => settings.gamesRoot,
+    games: () => repo.list(),
+    emit: (status) => send('downloads:update', status),
+    onCompleted: async (item) => {
+      await rescan()
+      send('library:changed', `${item.title} baixado — pronto pra jogar`)
+    }
   })
+  const telegram = new TelegramService(settings, qbWeb, {
+    thread: (t) => send('telegram:thread', t),
+    progress: (p) => send('telegram:progress', p),
+    downloadStarted: async ({ title, igdbId }) => {
+      downloads.poke()
+      if (!igdbId || repo.byIgdbId(igdbId)) return
+      try {
+        await addFromCatalog(igdbId)
+        send('library:changed', `${title} adicionado à biblioteca`)
+      } catch {
+        // Download still runs; the game shows up when the scan finds its folder.
+      }
+    }
+  })
+  downloads.start()
 
   const rescan = async () => {
     if (!settings.gamesRoot) return { added: 0, updated: 0, removed: 0, total: 0 }
@@ -49,6 +81,7 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     title: g.name,
     summary: g.summary ?? null,
     releaseYear: g.first_release_date ? new Date(g.first_release_date * 1000).getUTCFullYear() : null,
+    releaseDate: g.first_release_date ? g.first_release_date * 1000 : null,
     genres: (g.genres ?? []).map((x) => x.name),
     ...(await cacheArt(artDir, g))
   })
@@ -104,13 +137,18 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     }
   })
 
+  /** Adds a catalog game; merges into an installed game with the same title when there is one. */
+  const addFromCatalog = async (igdbId: number): Promise<Game> => {
+    const existing = repo.byIgdbId(igdbId)
+    if (existing) return existing
+    const meta = await fetchMeta(igdbId)
+    const installed = repo.findUnlinkedInstalled(meta.title)
+    return installed ? repo.applyCatalog(installed.id, meta) : repo.addCatalog(meta)
+  }
+
   ipcMain.handle('catalog:add', async (_e, igdbId: number): Promise<Result<Game>> => {
     try {
-      const existing = repo.byIgdbId(igdbId)
-      if (existing) return ok(existing)
-      const meta = await fetchMeta(igdbId)
-      const installed = repo.findUnlinkedInstalled(meta.title)
-      return ok(installed ? repo.applyCatalog(installed.id, meta) : repo.addCatalog(meta))
+      return ok(await addFromCatalog(igdbId))
     } catch (err) {
       return fail(err)
     }
@@ -136,6 +174,9 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   ipcMain.handle('settings:set', async (_e, patch: SettingsPatch) => {
     if (patch.gamesRoot !== undefined) settings.gamesRoot = patch.gamesRoot
     if (patch.igdbClientId !== undefined) settings.igdbClientId = patch.igdbClientId?.trim() || null
+    if (patch.qbWebUrl !== undefined) settings.qbWebUrl = patch.qbWebUrl.trim().replace(/\/+$/, '') || 'http://localhost:8080'
+    if (patch.qbWebUser !== undefined) settings.qbWebUser = patch.qbWebUser?.trim() || null
+    if (patch.qbWebUrl !== undefined || patch.qbWebUser !== undefined || patch.gamesRoot !== undefined) downloads.poke()
     if (patch.telegramTemplate !== undefined) settings.telegramTemplate = patch.telegramTemplate.trim() || '{title}'
     if (patch.telegramApiId !== undefined || patch.telegramPeer !== undefined) {
       if (patch.telegramApiId !== undefined) settings.telegramApiId = patch.telegramApiId || null
@@ -179,12 +220,23 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     return pub()
   })
 
-  ipcMain.handle('telegram:query', async (_e, title: string, force?: boolean): Promise<Result<TgThread>> => {
-    try {
-      return ok(await telegram.query(title, force))
-    } catch (err) {
-      return fail(err)
+  ipcMain.handle(
+    'telegram:query',
+    async (_e, title: string, force?: boolean, igdbId?: number | null): Promise<Result<TgThread>> => {
+      try {
+        return ok(await telegram.query(title, force, igdbId ?? null))
+      } catch (err) {
+        return fail(err)
+      }
     }
+  )
+
+  ipcMain.handle('downloads:get', () => downloads.current())
+  ipcMain.handle('settings:setQbWebPassword', (_e, password: string) => {
+    settings.qbWebPasswordEnc = encrypt(password)
+    saveSettings(settings)
+    downloads.poke()
+    return pub()
   })
   ipcMain.handle('telegram:openLink', async (_e, url: string) => {
     try {
@@ -230,6 +282,17 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       saveSettings(settings)
     }
     return pub()
+  })
+
+  ipcMain.handle('system:storage', async (): Promise<StorageInfo | null> => {
+    const path = settings.gamesRoot ?? app.getPath('home')
+    try {
+      const s = await statfs(path)
+      const root = parse(resolve(path)).root
+      return { label: root.replace(/[\\/]+$/, '') || '/', free: s.bavail * s.bsize, total: s.blocks * s.bsize }
+    } catch {
+      return null
+    }
   })
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())

@@ -9,6 +9,7 @@ import { StringSession } from 'telegram/sessions'
 import { getPeerId } from 'telegram/Utils'
 import type { TgDownloadProgress, TgLoginStep, TgMessage, TgThread } from '@shared/types'
 import { decrypt, encrypt, saveSettings, type StoredSettings } from '../settings'
+import type { QbWebApi } from '../downloads/qbWebApi'
 import { addToQbittorrent, findQbittorrent } from './qbittorrent'
 import {
   describeFile,
@@ -32,6 +33,8 @@ const REUSE_MS = 30 * 60_000
 interface Thread {
   /** Game title the query was made for; names the folder the download goes into. */
   title: string
+  /** Catalog id, so a download can add the game to the library. */
+  igdbId: number | null
   query: string
   sentAt: number
   /** Last time anything was sent for this thread (query or command); replies are accepted after it. */
@@ -44,6 +47,8 @@ interface Thread {
 interface Events {
   thread(t: TgThread): void
   progress(p: TgDownloadProgress): void
+  /** A torrent for this game was handed to the torrent client. */
+  downloadStarted(game: { title: string; igdbId: number | null }): void
 }
 
 export class TelegramService {
@@ -57,6 +62,7 @@ export class TelegramService {
 
   constructor(
     private settings: StoredSettings,
+    private qbWeb: QbWebApi,
     private events: Events
   ) {}
 
@@ -133,10 +139,11 @@ export class TelegramService {
     return { query: t.query, sentAt: t.sentAt, messages }
   }
 
-  async query(title: string, force = false): Promise<TgThread> {
+  async query(title: string, force = false, igdbId: number | null = null): Promise<TgThread> {
     const text = renderTemplate(this.settings.telegramTemplate, title)
     const prev = this.threads.get(text)
     if (prev && !force && Date.now() - prev.sentAt < REUSE_MS) {
+      prev.igdbId ??= igdbId
       this.active = prev
       return this.view(prev)
     }
@@ -144,6 +151,7 @@ export class TelegramService {
     const peer = await this.peer(c)
     const t: Thread = {
       title,
+      igdbId,
       query: text,
       sentAt: Date.now(),
       lastSentAt: Date.now(),
@@ -176,7 +184,7 @@ export class TelegramService {
   async openLink(url: string): Promise<'qbittorrent' | 'default'> {
     if (!isOpenable(url)) throw new Error('Link não suportado')
     if (/^magnet:/i.test(url)) {
-      const via = await this.openTorrent(url, this.savePathFor(this.active?.title))
+      const via = await this.openTorrent(url, this.active)
       return via === 'qbittorrent' ? via : 'default'
     }
     await shell.openExternal(url)
@@ -199,14 +207,30 @@ export class TelegramService {
         total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
     })
     const savePath = this.savePathFor(thread.title)
-    const openedWith = info.torrent ? await this.openTorrent(path, savePath) : 'folder'
+    const openedWith = info.torrent ? await this.openTorrent(path, thread) : 'folder'
     if (openedWith === 'folder') shell.showItemInFolder(path)
     this.events.progress({ msgId, ratio: 1, openedWith, savePath })
     return path
   }
 
   /** qBittorrent saving into `savePath` when installed; the OS default handler otherwise. */
-  private async openTorrent(torrent: string, savePath: string | null): Promise<'qbittorrent' | 'default' | 'folder'> {
+  private async openTorrent(torrent: string, thread: Thread | null): Promise<'qbittorrent' | 'default' | 'folder'> {
+    const via = await this.sendToClient(torrent, this.savePathFor(thread?.title))
+    if (via !== 'folder' && thread) this.events.downloadStarted({ title: thread.title, igdbId: thread.igdbId })
+    return via
+  }
+
+  /**
+   * qBittorrent Web API first (honors the folder even with automatic torrent management on), then its
+   * command line, then whatever handles .torrent/magnet on the system.
+   */
+  private async sendToClient(torrent: string, savePath: string | null): Promise<'qbittorrent' | 'default' | 'folder'> {
+    try {
+      await this.qbWeb.add(torrent, savePath)
+      return 'qbittorrent'
+    } catch {
+      // Web UI off: try the executable.
+    }
     const qb = findQbittorrent(this.settings.qbittorrentPath)
     if (qb) {
       try {

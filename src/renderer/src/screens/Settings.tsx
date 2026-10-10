@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Result, Settings as S, TgLoginStep } from '@shared/types'
+import type { DownloadsStatus, Result, Settings as S, StorageInfo, TgLoginStep } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { TextEntry } from '../components/TextEntry'
+import { formatBytes } from '../format'
 import { useInput } from '../input/useInput'
 
 interface Props {
@@ -12,13 +13,26 @@ interface Props {
   onSetIgdbClientId(v: string): void
   onSetIgdbSecret(v: string): void
   onSettings(s: S): void
+  /** For the qBittorrent Web UI connection status. */
+  downloads: DownloadsStatus
+  storage: StorageInfo | null
   notify(msg: string): void
   onClose(): void
 }
 
 type Editing = null | 'clientId' | 'secret' | TgField
 
-type TgField = 'tgApiId' | 'tgApiHash' | 'tgPeer' | 'tgTemplate' | 'tgPhone' | 'tgCode' | 'tgPassword'
+type TgField =
+  | 'tgApiId'
+  | 'tgApiHash'
+  | 'tgPeer'
+  | 'tgTemplate'
+  | 'tgPhone'
+  | 'tgCode'
+  | 'tgPassword'
+  | 'qbUrl'
+  | 'qbUser'
+  | 'qbPass'
 
 const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean }> = {
   tgApiId: { title: 'Telegram API ID', hint: 'Número do app criado em my.telegram.org → API development tools.' },
@@ -27,12 +41,15 @@ const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean 
   tgTemplate: { title: 'Mensagem enviada', hint: '{title} vira o nome do jogo. Ex.: /search {title}' },
   tgPhone: { title: 'Seu telefone', hint: 'Com DDI, ex.: +5511999998888. O Telegram vai mandar um código.' },
   tgCode: { title: 'Código do Telegram', hint: 'Chegou no app do Telegram (ou por SMS).' },
-  tgPassword: { title: 'Senha de verificação em duas etapas', hint: 'Sua conta tem 2FA ativado.', secret: true }
+  tgPassword: { title: 'Senha de verificação em duas etapas', hint: 'Sua conta tem 2FA ativado.', secret: true },
+  qbUrl: { title: 'Endereço da Interface Web', hint: 'Padrão: http://localhost:8080' },
+  qbUser: { title: 'Usuário da Interface Web', hint: 'Deixe vazio se ligou "Ignorar autenticação para clientes no localhost".' },
+  qbPass: { title: 'Senha da Interface Web', hint: 'Fica criptografada no cofre do sistema.', secret: true }
 }
 
 export function Settings(props: Props) {
-  const { settings, onPickRoot, onRescan, onToggleFullscreen, onSetIgdbClientId, onSetIgdbSecret, onSettings, notify, onClose } =
-    props
+  const { settings, onPickRoot, onRescan, onToggleFullscreen, onSetIgdbClientId, onSetIgdbSecret, onSettings } = props
+  const { downloads, storage, notify, onClose } = props
   const [editing, setEditing] = useState<Editing>(null)
   const tgReady = !!settings.telegramApiId && settings.hasTelegramApiHash
 
@@ -60,12 +77,23 @@ export function Settings(props: Props) {
       return onSettings(await window.api.setSettings({ telegramApiId: v.trim() ? id : null }))
     }
     if (field === 'tgPeer') return onSettings(await window.api.setSettings({ telegramPeer: v }))
+    if (field === 'qbUrl') return onSettings(await window.api.setSettings({ qbWebUrl: v }))
+    if (field === 'qbUser') return onSettings(await window.api.setSettings({ qbWebUser: v }))
+    if (field === 'qbPass') return onSettings(await window.api.setQbWebPassword(v))
     onSettings(await window.api.setSettings({ telegramTemplate: v }))
   }
 
   const items = [
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
     { label: 'Reescanear biblioteca', value: '', run: onRescan, disabled: !settings.gamesRoot },
+    {
+      label: 'Armazenamento',
+      value: storage
+        ? `${storage.label} · ${formatBytes(storage.free)} livres de ${formatBytes(storage.total)}`
+        : 'Indisponível',
+      run: () => {},
+      disabled: true
+    },
     { label: 'Tela cheia', value: settings.fullscreen ? 'Ligado' : 'Desligado', run: onToggleFullscreen },
     { label: 'IGDB Client ID', value: settings.igdbClientId ?? 'Não definido', run: () => setEditing('clientId') },
     { label: 'IGDB Client Secret', value: settings.hasIgdbSecret ? '••••••••' : 'Não definido', run: () => setEditing('secret') },
@@ -73,11 +101,6 @@ export function Settings(props: Props) {
     { label: 'Telegram API Hash', value: settings.hasTelegramApiHash ? '••••••••' : 'Não definido', run: () => setEditing('tgApiHash') },
     { label: 'Telegram canal / bot', value: settings.telegramPeer ? `@${settings.telegramPeer}` : 'Não definido', run: () => setEditing('tgPeer') },
     { label: 'Telegram mensagem', value: settings.telegramTemplate, run: () => setEditing('tgTemplate') },
-    {
-      label: 'qBittorrent',
-      value: settings.qbittorrentPath ?? 'Não encontrado',
-      run: async () => onSettings(await window.api.pickQbittorrent())
-    },
     settings.telegramLoggedIn
       ? {
           label: 'Telegram conta',
@@ -87,7 +110,19 @@ export function Settings(props: Props) {
             notify('Telegram desconectado')
           }
         }
-      : { label: 'Telegram conta', value: 'Entrar', run: () => setEditing('tgPhone'), disabled: !tgReady }
+      : { label: 'Telegram conta', value: 'Entrar', run: () => setEditing('tgPhone'), disabled: !tgReady },
+    {
+      label: 'qBittorrent',
+      value: settings.qbittorrentPath ?? 'Não encontrado',
+      run: async () => onSettings(await window.api.pickQbittorrent())
+    },
+    {
+      label: 'qBittorrent Interface Web',
+      value: `${settings.qbWebUrl} · ${downloads.available ? 'conectado' : settings.gamesRoot ? 'desligado' : 'defina a pasta de jogos'}`,
+      run: () => setEditing('qbUrl')
+    },
+    { label: 'qBittorrent usuário', value: settings.qbWebUser ?? 'Nenhum', run: () => setEditing('qbUser') },
+    { label: 'qBittorrent senha', value: settings.hasQbWebPassword ? '••••••••' : 'Nenhuma', run: () => setEditing('qbPass') }
   ]
   const [sel, setSel] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)
@@ -134,8 +169,12 @@ export function Settings(props: Props) {
         <p className="settings-note">
           Telegram: crie um app em my.telegram.org (API development tools) para obter API ID e Hash, defina o canal ou
           bot e entre com sua conta. No detalhe de um jogo, o botão Telegram envia o nome dele e mostra as respostas em
-          “Telegram”. Hash e sessão ficam criptografados. Torrents vão pro qBittorrent (detectado automaticamente)
-          baixando direto na pasta de jogos.
+          “Telegram”. Hash e sessão ficam criptografados.
+        </p>
+        <p className="settings-note">
+          qBittorrent: os torrents vão pra pasta de jogos, numa subpasta com o nome do jogo. Para ver o progresso no app,
+          ligue no qBittorrent Opções → Interface Web (porta 8080) e marque “Ignorar autenticação para clientes no
+          localhost” — ou informe aqui usuário e senha.
         </p>
       </div>
       {editing && editing !== 'clientId' && editing !== 'secret' && (
@@ -151,7 +190,11 @@ export function Settings(props: Props) {
                 ? (settings.telegramPeer ?? '')
                 : editing === 'tgTemplate'
                   ? settings.telegramTemplate
-                  : ''
+                  : editing === 'qbUrl'
+                    ? settings.qbWebUrl
+                    : editing === 'qbUser'
+                      ? (settings.qbWebUser ?? '')
+                      : ''
           }
           onSubmit={(v) => submitTg(editing, v)}
           onCancel={() => setEditing(null)}

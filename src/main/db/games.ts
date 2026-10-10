@@ -14,6 +14,7 @@ interface GameRow {
   igdb_id: number | null
   summary: string | null
   release_year: number | null
+  release_date: number | null
   genres: string
   added_at: number
   last_played_at: number | null
@@ -27,6 +28,7 @@ export interface CatalogMeta {
   title: string
   summary: string | null
   releaseYear: number | null
+  releaseDate: number | null
   genres: string[]
   coverPath: string | null
   artPath: string | null
@@ -43,6 +45,7 @@ const toGame = (r: GameRow): Game => ({
   igdbId: r.igdb_id,
   summary: r.summary,
   releaseYear: r.release_year,
+  releaseDate: r.release_date,
   genres: JSON.parse(r.genres) as string[],
   addedAt: r.added_at,
   lastPlayedAt: r.last_played_at,
@@ -142,14 +145,15 @@ export class GamesRepo {
   addCatalog(meta: CatalogMeta): Game {
     const res = this.db
       .prepare(
-        `INSERT INTO games (title, igdb_id, summary, release_year, genres, cover_path, art_path, added_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO games (title, igdb_id, summary, release_year, release_date, genres, cover_path, art_path, added_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         meta.title,
         meta.igdbId,
         meta.summary,
         meta.releaseYear,
+        meta.releaseDate,
         JSON.stringify(meta.genres),
         meta.coverPath,
         meta.artPath,
@@ -162,7 +166,7 @@ export class GamesRepo {
   applyCatalog(gameId: number, meta: CatalogMeta): Game {
     this.db
       .prepare(
-        `UPDATE games SET igdb_id = ?, summary = ?, release_year = ?, genres = ?,
+        `UPDATE games SET igdb_id = ?, summary = ?, release_year = ?, release_date = ?, genres = ?,
            cover_path = COALESCE(?, cover_path), art_path = COALESCE(?, art_path), title = ?
          WHERE id = ?`
       )
@@ -170,6 +174,7 @@ export class GamesRepo {
         meta.igdbId,
         meta.summary,
         meta.releaseYear,
+        meta.releaseDate,
         JSON.stringify(meta.genres),
         meta.coverPath,
         meta.artPath,

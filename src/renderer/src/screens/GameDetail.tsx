@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { Game } from '@shared/types'
+import type { DownloadInfo, Game } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
-import { formatDate, formatPlaytime } from '../format'
+import { formatDate, formatDownload, formatPlaytime } from '../format'
 import { useInput } from '../input/useInput'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThread'
@@ -10,6 +10,8 @@ import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThr
 interface Props {
   game: Game
   running: boolean
+  /** Active download of this game, if any. */
+  download: DownloadInfo | null
   gamesRoot: string | null
   /** Telegram peer to query on open; null when Telegram isn't set up. */
   telegramPeer: string | null
@@ -21,12 +23,14 @@ interface Props {
 
 type Item = { id: 'play' | 'telegram' | 'identify' | 'remove' | 'back'; label: string; disabled?: boolean }
 
-export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, onIdentify, onRemove, onClose }: Props) {
-  const installed = !!game.folder
+export function GameDetail(props: Props) {
+  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onIdentify, onRemove, onClose } = props
+  // A folder that's still downloading isn't playable yet.
+  const installed = !!game.folder && !download
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
-  const tg = useTelegramThread(game.title, !!telegramPeer && tgAsked)
+  const tg = useTelegramThread(game.title, !!telegramPeer && tgAsked, game.igdbId)
   const openTelegram = () => {
     setTgAsked(true)
     setTgOpen(true)
@@ -35,7 +39,7 @@ export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, o
     ...(installed ? [{ id: 'play', label: running ? 'Em execução' : 'Jogar', disabled: !game.exePath || running } as Item] : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
-    ...(!installed ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
+    ...(!game.folder ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
     { id: 'back', label: 'Voltar' }
   ]
   const [sel, setSel] = useState(0)
@@ -65,7 +69,14 @@ export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, o
           {(game.releaseYear || game.genres.length > 0) && (
             <p className="detail-sub">{[game.releaseYear, game.genres.join(', ')].filter(Boolean).join(' · ')}</p>
           )}
-          {installed ? (
+          {download ? (
+            <div className="detail-download">
+              <p className="detail-note">{formatDownload(download)}</p>
+              <div className="progress">
+                <span style={{ width: `${download.progress * 100}%` }} />
+              </div>
+            </div>
+          ) : installed ? (
             <dl className="stats">
               <div>
                 <dt>Tempo de jogo</dt>

@@ -5,7 +5,8 @@ describe('sectionQueries', () => {
   const now = 1_790_000_000
   const q = sectionQueries(now)
   it('limits every section to main PC games with cover', () => {
-    for (const body of Object.values(q)) {
+    const { greatIn, ...lists } = q
+    for (const body of [...Object.values(lists), greatIn('genres', 12)]) {
       expect(body).toContain('platforms = (6)')
       expect(body).toContain('version_parent = null')
       expect(body).toContain('cover != null')
@@ -14,6 +15,15 @@ describe('sectionQueries', () => {
   it('upcoming only lists future games by hype', () => {
     expect(q.upcoming).toContain(`first_release_date > ${now}`)
     expect(q.upcoming).toContain('sort hypes desc')
+  })
+})
+
+describe('greatIn', () => {
+  it('filters by the resolved genre/theme id and recent, rated games', () => {
+    const body = sectionQueries(1_790_000_000).greatIn('themes', 19)
+    expect(body).toContain('themes = (19)')
+    expect(body).toContain('total_rating_count >= 25')
+    expect(body).toContain('sort total_rating desc')
   })
 })
 

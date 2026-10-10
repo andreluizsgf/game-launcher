@@ -5,19 +5,19 @@ export type TgState =
   { status: 'off' } | { status: 'sending' } | { status: 'error'; error: string } | { status: 'ready'; thread: TgThread }
 
 /** Sends the title to the Telegram peer while `enabled` and follows the replies as they arrive. */
-export function useTelegramThread(title: string, enabled: boolean) {
+export function useTelegramThread(title: string, enabled: boolean, igdbId: number | null = null) {
   const [state, setState] = useState<TgState>({ status: enabled ? 'sending' : 'off' })
   const query = useRef<string | null>(null)
 
   const send = useCallback(
     async (force: boolean) => {
       setState({ status: 'sending' })
-      const res = await window.api.telegramQuery(title, force)
+      const res = await window.api.telegramQuery(title, force, igdbId)
       if (!res.ok) return setState({ status: 'error', error: res.error })
       query.current = res.value.query
       setState({ status: 'ready', thread: res.value })
     },
-    [title]
+    [title, igdbId]
   )
 
   useEffect(() => {

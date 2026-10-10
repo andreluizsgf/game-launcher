@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { GameEndedEvent, LauncherApi, TgDownloadProgress, TgThread } from '@shared/types'
+import type { DownloadsStatus, GameEndedEvent, LauncherApi, TgDownloadProgress, TgThread } from '@shared/types'
 
 function on<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, payload: T) => cb(payload)
@@ -26,13 +26,18 @@ const api: LauncherApi = {
   telegramLoginCode: (code) => ipcRenderer.invoke('telegram:loginCode', code),
   telegramLoginPassword: (pw) => ipcRenderer.invoke('telegram:loginPassword', pw),
   telegramLogout: () => ipcRenderer.invoke('telegram:logout'),
-  telegramQuery: (title, force) => ipcRenderer.invoke('telegram:query', title, force),
+  telegramQuery: (title, force, igdbId) => ipcRenderer.invoke('telegram:query', title, force, igdbId),
   telegramOpenLink: (url) => ipcRenderer.invoke('telegram:openLink', url),
   telegramDownload: (msgId) => ipcRenderer.invoke('telegram:download', msgId),
   telegramPress: (msgId, row, col) => ipcRenderer.invoke('telegram:press', msgId, row, col),
   telegramCommand: (command) => ipcRenderer.invoke('telegram:command', command),
   onTelegramThread: (cb) => on<TgThread>('telegram:thread', cb),
   onTelegramProgress: (cb) => on<TgDownloadProgress>('telegram:progress', cb),
+  setQbWebPassword: (password) => ipcRenderer.invoke('settings:setQbWebPassword', password),
+  getDownloads: () => ipcRenderer.invoke('downloads:get'),
+  onDownloads: (cb) => on<DownloadsStatus>('downloads:update', cb),
+  onLibraryChanged: (cb) => on<string | null>('library:changed', cb),
+  storage: () => ipcRenderer.invoke('system:storage'),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   onGameEnded: (cb) => on<GameEndedEvent>('game:ended', cb),
   onGameStarted: (cb) => on<number>('game:started', cb)

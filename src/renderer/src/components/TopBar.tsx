@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import type { StorageInfo } from '@shared/types'
+import { formatBytes } from '../format'
 import type { PadStatus } from '../input/gamepad'
 import { useInputMode } from '../input/mode'
 
@@ -10,11 +12,15 @@ const TABS: { id: Tab; label: string }[] = [
 
 interface Props {
   pad: PadStatus
+  storage: StorageInfo | null
   tab: Tab
   onTab(t: Tab): void
 }
 
-export function TopBar({ pad, tab, onTab }: Props) {
+/** Below this share of free space the indicator turns red. */
+const LOW_SPACE = 0.1
+
+export function TopBar({ pad, storage, tab, onTab }: Props) {
   const mode = useInputMode()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -38,6 +44,17 @@ export function TopBar({ pad, tab, onTab }: Props) {
         </button>
       </nav>
       <div className="topbar-right">
+        {storage && storage.total > 0 && (
+          <span
+            className={`storage ${storage.free / storage.total < LOW_SPACE ? 'low' : ''}`}
+            title={`${storage.label} · ${formatBytes(storage.free)} livres de ${formatBytes(storage.total)}`}
+          >
+            <span className="storage-bar">
+              <span style={{ width: `${(1 - storage.free / storage.total) * 100}%` }} />
+            </span>
+            {formatBytes(storage.free)} livres
+          </span>
+        )}
         <span className={`pad-dot ${pad.connected ? 'on' : ''}`} title={pad.name ?? 'Sem controle'} />
         <time>{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
       </div>

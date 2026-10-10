@@ -50,7 +50,9 @@ const MIGRATIONS: string[] = [
      SELECT id, folder, title, exe_path, exe_override, cover_path, added_at,
             last_played_at, total_seconds, hidden, input_mode FROM games;
    DROP TABLE games;
-   ALTER TABLE games_v2 RENAME TO games;`
+   ALTER TABLE games_v2 RENAME TO games;`,
+  // v3: full release date (ms) for the "Aguardados" shelf.
+  `ALTER TABLE games ADD COLUMN release_date INTEGER;`
 ]
 
 export function openDb(file: string): Database.Database {

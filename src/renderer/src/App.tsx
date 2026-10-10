@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Game, Settings as S, StoreGame } from '@shared/types'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DownloadsStatus, Game, Settings as S, StorageInfo, StoreGame } from '@shared/types'
 import { Background, type BackdropArt } from './components/Background'
 import { Toast } from './components/Toast'
 import { TopBar, type Tab } from './components/TopBar'
@@ -8,6 +8,7 @@ import { startGamepadLoop, type PadStatus } from './input/gamepad'
 import { startHidPads } from './input/hidPads'
 import { startKeyboard } from './input/keyboard'
 import { startMouseTracking } from './input/mode'
+import { activeDownloads, groupShelves, SHELF_LABEL, SHELF_ORDER, stepShelf, type Shelf } from './library/shelves'
 import { GameDetail } from './screens/GameDetail'
 import { Home } from './screens/Home'
 import { Search, type SearchMode } from './screens/Search'
@@ -33,6 +34,11 @@ export function App() {
   const [tab, setTab] = useState<Tab>('games')
   const [storeArt, setStoreArt] = useState<BackdropArt | null>(null)
   const [libraryVersion, setLibraryVersion] = useState(0)
+  const [downloads, setDownloads] = useState<DownloadsStatus>({ available: false, items: [] })
+  const [shelf, setShelf] = useState<Shelf>('installed')
+  /** Game to focus once the list/shelves update (after reloads, "Ver na biblioteca"…). */
+  const [focusTarget, setFocusTarget] = useState<number | null>(null)
+  const [storage, setStorage] = useState<StorageInfo | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const notify = useCallback((msg: string) => {
@@ -46,11 +52,40 @@ export function App() {
     const list = await window.api.listGames()
     setGames(list)
     setLibraryVersion((v) => v + 1)
-    setFocus((f) => {
-      const idx = keepId !== undefined ? list.findIndex((g) => g.id === keepId) : -1
-      return idx >= 0 ? idx : Math.min(f, Math.max(0, list.length - 1))
-    })
+    if (keepId !== undefined) setFocusTarget(keepId)
   }, [])
+
+  // Free space on the games drive: every 30 s (downloads fill it), and whenever the library or root changes.
+  useEffect(() => {
+    const refresh = () => window.api.storage().then(setStorage)
+    refresh()
+    const t = setInterval(refresh, 30_000)
+    return () => clearInterval(t)
+  }, [libraryVersion, settings?.gamesRoot])
+
+  const dlByGame = useMemo(() => activeDownloads(downloads.items), [downloads])
+  const shelves = useMemo(() => groupShelves(games, dlByGame), [games, dlByGame])
+  const shelfGames = shelves[shelf]
+
+  // Follow a focus target to whatever shelf it's on; otherwise never sit on an empty shelf.
+  useEffect(() => {
+    if (focusTarget != null) {
+      const key = SHELF_ORDER.find((k) => shelves[k].some((g) => g.id === focusTarget))
+      if (key) {
+        setShelf(key)
+        setFocus(shelves[key].findIndex((g) => g.id === focusTarget))
+      }
+      setFocusTarget(null)
+      return
+    }
+    if (shelfGames.length === 0) {
+      const other = SHELF_ORDER.find((k) => shelves[k].length > 0)
+      if (other && other !== shelf) {
+        setShelf(other)
+        setFocus(0)
+      }
+    } else if (focus >= shelfGames.length) setFocus(shelfGames.length - 1)
+  }, [shelves, shelf, shelfGames.length, focus, focusTarget])
 
   useEffect(() => {
     window.api.getSettings().then(setSettings)
@@ -67,6 +102,12 @@ export function App() {
     const stopHid = startHidPads()
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
+    window.api.getDownloads().then(setDownloads)
+    const offDownloads = window.api.onDownloads(setDownloads)
+    const offLibrary = window.api.onLibraryChanged((msg) => {
+      if (msg) notify(msg)
+      reload()
+    })
     const offStart = window.api.onGameStarted((id) => setRunningId(id))
     const offEnd = window.api.onGameEnded(({ gameId, seconds }) => {
       setRunningId(null)
@@ -80,6 +121,8 @@ export function App() {
       stopMouse()
       offStart()
       offEnd()
+      offDownloads()
+      offLibrary()
     }
   }, [notify, reload])
 
@@ -90,19 +133,18 @@ export function App() {
   }
 
   const onHomeConfirm = (g: Game) => {
-    if (g.folder) return launch(g)
+    if (g.folder && !dlByGame.has(g.id)) return launch(g)
     // Not installed: show where to put it instead of failing silently.
     setOverlay({ kind: 'detail', gameId: g.id })
   }
 
-  const game = games[focus] ?? null
+  const game = shelfGames[Math.min(focus, shelfGames.length - 1)] ?? null
   const homeArt: BackdropArt | null = game
     ? { key: `game-${game.id}`, url: mediaUrl(game.artPath ?? game.coverPath), wide: !!game.artPath, seed: game.title }
     : null
   const switchTab = (dir: -1 | 1) => setTab((t) => (dir > 0 ? (t === 'games' ? 'store' : t) : t === 'store' ? 'games' : t))
   const showInLibrary = (gameId: number) => {
-    const idx = games.findIndex((g) => g.id === gameId)
-    if (idx >= 0) setFocus(idx)
+    setFocusTarget(gameId)
     setTab('games')
     setOverlay({ kind: 'none' })
   }
@@ -112,7 +154,7 @@ export function App() {
   return (
     <div className="app">
       <Background art={tab === 'games' ? homeArt : storeArt} />
-      <TopBar pad={pad} tab={tab} onTab={(t) => overlay.kind === 'none' && setTab(t)} />
+      <TopBar pad={pad} storage={storage} tab={tab} onTab={(t) => overlay.kind === 'none' && setTab(t)} />
       <Store
         active={tab === 'store' && overlay.kind === 'none'}
         libraryVersion={libraryVersion}
@@ -124,8 +166,23 @@ export function App() {
       />
       {tab === 'games' && (
         <Home
-          games={games}
-          focus={focus}
+          games={shelfGames}
+          totalGames={games.length}
+          shelves={SHELF_ORDER.filter((k) => shelves[k].length > 0 || k === shelf).map((k) => ({
+            id: k,
+            label: SHELF_LABEL[k],
+            count: shelves[k].length
+          }))}
+          shelf={shelf}
+          onShelf={(to) => {
+            const next = typeof to === 'number' ? stepShelf(shelf, to, shelves) : to
+            if (next !== shelf) {
+              setShelf(next)
+              setFocus(0)
+            }
+          }}
+          downloads={dlByGame}
+          focus={Math.min(focus, Math.max(0, shelfGames.length - 1))}
           setFocus={setFocus}
           active={tab === 'games' && overlay.kind === 'none'}
           runningId={runningId}
@@ -155,6 +212,7 @@ export function App() {
         <GameDetail
           game={detailGame}
           running={runningId === detailGame.id}
+          download={dlByGame.get(detailGame.id) ?? null}
           gamesRoot={settings?.gamesRoot ?? null}
           telegramPeer={telegramPeer}
           onLaunch={launch}
@@ -202,6 +260,8 @@ export function App() {
             notify(v.trim() ? 'Secret salvo' : 'Secret removido')
           }}
           onSettings={setSettings}
+          downloads={downloads}
+          storage={storage}
           notify={notify}
           onClose={() => setOverlay({ kind: 'none' })}
         />

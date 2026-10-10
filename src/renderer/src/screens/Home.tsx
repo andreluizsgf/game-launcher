@@ -1,12 +1,28 @@
 import { useEffect, useRef, type WheelEvent } from 'react'
-import type { Game } from '@shared/types'
+import type { DownloadInfo, Game } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
-import { formatPlaytime } from '../format'
+import { formatDownload, formatPlaytime, formatReleaseDate } from '../format'
 import { useInput } from '../input/useInput'
+import type { Shelf } from '../library/shelves'
+
+interface ShelfTab {
+  id: Shelf
+  label: string
+  count: number
+}
 
 interface Props {
+  /** Games on the current shelf. */
   games: Game[]
+  /** Whole library size, for the empty state. */
+  totalGames: number
+  shelves: ShelfTab[]
+  shelf: Shelf
+  /** Step to the next/previous non-empty shelf, or jump to one (mouse). */
+  onShelf(to: -1 | 1 | Shelf): void
+  /** Active downloads by game id. */
+  downloads: Map<number, DownloadInfo>
   focus: number
   setFocus(i: number): void
   active: boolean
@@ -18,9 +34,12 @@ interface Props {
   onTab(dir: -1 | 1): void
 }
 
-export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDetails, onSettings, onSearch, onTab }: Props) {
+export function Home(props: Props) {
+  const { games, totalGames, shelves, shelf, onShelf, downloads } = props
+  const { focus, setFocus, active, runningId, onLaunch, onDetails, onSettings, onSearch, onTab } = props
   const rowRef = useRef<HTMLDivElement>(null)
   const game = games[focus] ?? null
+  const dl = game ? downloads.get(game.id) : undefined
   const clamp = (i: number) => Math.max(0, Math.min(games.length - 1, i))
 
   useInput((a) => {
@@ -28,6 +47,8 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
     if (a === 'secondary') return onSearch()
     if (a === 'pageLeft') return onTab(-1)
     if (a === 'pageRight') return onTab(1)
+    if (a === 'up') return onShelf(-1)
+    if (a === 'down') return onShelf(1)
     if (!game) return
     if (a === 'left') setFocus(clamp(focus - 1))
     else if (a === 'right') setFocus(clamp(focus + 1))
@@ -55,7 +76,7 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
     setFocus(clamp(focus + (d > 0 ? 1 : -1)))
   }
 
-  if (games.length === 0) {
+  if (totalGames === 0) {
     return (
       <main className="home empty">
         <h1>Nenhum jogo encontrado</h1>
@@ -72,6 +93,21 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
 
   return (
     <main className="home">
+      {shelves.length > 1 && (
+        <nav className="shelves">
+          {shelves.map((s) => (
+            <button
+              key={s.id}
+              className={`shelf ${s.id === shelf ? 'active' : ''}`}
+              onClick={() => onShelf(s.id)}
+            >
+              {s.label}
+              <span className="shelf-count">{s.count}</span>
+            </button>
+          ))}
+          <span className="shelf-hint">↑↓</span>
+        </nav>
+      )}
       <div className="row-viewport" onWheel={onWheel}>
         <div className="row" ref={rowRef}>
           {games.map((g, i) => (
@@ -83,7 +119,16 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
             >
               <GameArt game={g} className="tile-art" />
               {runningId === g.id && <span className="tile-badge">Em execução</span>}
-              {!g.folder && <span className="tile-badge muted">Não instalado</span>}
+              {downloads.has(g.id) ? (
+                <>
+                  <span className="tile-badge">{Math.floor(downloads.get(g.id)!.progress * 100)}%</span>
+                  <span className="tile-progress" style={{ width: `${downloads.get(g.id)!.progress * 100}%` }} />
+                </>
+              ) : (
+                !g.folder && (
+                  <span className="tile-badge muted">{shelf === 'upcoming' ? 'Em breve' : 'Não instalado'}</span>
+                )
+              )}
             </div>
           ))}
         </div>
@@ -95,19 +140,29 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
           <div className="hero-actions">
             <button
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
-              disabled={!game.folder || !game.exePath}
+              disabled={!game.folder || !game.exePath || !!dl}
               onClick={() => onLaunch(game)}
             >
               {runningId === game.id
                 ? 'Em execução'
-                : !game.folder
-                  ? 'Não instalado'
-                  : game.exePath
-                    ? 'Jogar'
-                    : 'Sem executável'}
+                : dl
+                  ? `Baixando ${Math.floor(dl.progress * 100)}%`
+                  : !game.folder
+                    ? shelf === 'upcoming'
+                      ? 'Em breve'
+                      : 'Não instalado'
+                    : game.exePath
+                      ? 'Jogar'
+                      : 'Sem executável'}
             </button>
             <span className="hero-meta">
-              {game.folder ? formatPlaytime(game.totalSeconds) : [game.releaseYear, game.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}
+              {dl
+                ? formatDownload(dl)
+                : game.folder
+                  ? formatPlaytime(game.totalSeconds)
+                  : shelf === 'upcoming'
+                    ? `Lança em ${formatReleaseDate(game.releaseDate)}`
+                    : [game.releaseYear, game.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}
             </span>
           </div>
         </section>

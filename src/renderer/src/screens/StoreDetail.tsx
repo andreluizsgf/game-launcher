@@ -21,7 +21,8 @@ export function StoreDetail({ game, telegramPeer, onAdd, onShowInLibrary, onClos
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
-  const tg = useTelegramThread(game.name, !!telegramPeer && tgAsked)
+  // igdbId: downloading from here adds the game to the library.
+  const tg = useTelegramThread(game.name, !!telegramPeer && tgAsked, game.igdbId)
   const openTelegram = () => {
     setTgAsked(true)
     setTgOpen(true)

@@ -13,6 +13,8 @@ export interface Game {
   igdbId: number | null
   summary: string | null
   releaseYear: number | null
+  /** Full release date (ms) when known from the catalog; drives the "Aguardados" shelf. */
+  releaseDate: number | null
   genres: string[]
   addedAt: number
   lastPlayedAt: number | null
@@ -36,10 +38,24 @@ export interface Settings {
   telegramLoggedIn: boolean
   /** qBittorrent executable in use (override or auto-detected); null = not found. */
   qbittorrentPath: string | null
+  /** qBittorrent Web UI, used to add torrents with a fixed folder and to follow progress. */
+  qbWebUrl: string
+  qbWebUser: string | null
+  hasQbWebPassword: boolean
 }
 
 export type SettingsPatch = Partial<
-  Pick<Settings, 'gamesRoot' | 'fullscreen' | 'igdbClientId' | 'telegramApiId' | 'telegramPeer' | 'telegramTemplate'>
+  Pick<
+    Settings,
+    | 'gamesRoot'
+    | 'fullscreen'
+    | 'igdbClientId'
+    | 'telegramApiId'
+    | 'telegramPeer'
+    | 'telegramTemplate'
+    | 'qbWebUrl'
+    | 'qbWebUser'
+  >
 >
 
 export interface ScanResult {
@@ -138,6 +154,38 @@ export interface TgDownloadProgress {
 
 export type TgLoginStep = 'code' | 'password' | 'done'
 
+export type DownloadState = 'downloading' | 'stalled' | 'paused' | 'queued' | 'error' | 'done'
+
+/** A qBittorrent torrent saving into the games folder. */
+export interface DownloadInfo {
+  hash: string
+  /** Library game it belongs to (by folder or title); null when none matches. */
+  gameId: number | null
+  title: string
+  /** 0–1 */
+  progress: number
+  state: DownloadState
+  /** bytes/s */
+  speed: number
+  /** seconds left; null = unknown */
+  eta: number | null
+  size: number
+}
+
+export interface DownloadsStatus {
+  /** qBittorrent Web UI reachable (and a games folder set). */
+  available: boolean
+  items: DownloadInfo[]
+}
+
+/** Disk holding the games folder (or the home folder when none is set). */
+export interface StorageInfo {
+  /** "D:" on Windows, "/" elsewhere. */
+  label: string
+  free: number
+  total: number
+}
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface LauncherApi {
@@ -163,8 +211,11 @@ export interface LauncherApi {
   telegramLoginCode(code: string): Promise<Result<TgLoginStep>>
   telegramLoginPassword(password: string): Promise<Result<TgLoginStep>>
   telegramLogout(): Promise<Settings>
-  /** Sends the game title to the peer, unless a recent thread for it exists (`force` resends). */
-  telegramQuery(title: string, force?: boolean): Promise<Result<TgThread>>
+  /**
+   * Sends the game title to the peer, unless a recent thread for it exists (`force` resends).
+   * `igdbId` lets a download add the game to the library.
+   */
+  telegramQuery(title: string, force?: boolean, igdbId?: number | null): Promise<Result<TgThread>>
   /** http(s) opens in the browser; magnet links go to qBittorrent like .torrent files. */
   telegramOpenLink(url: string): Promise<Result<TgDownloadProgress['openedWith']>>
   /** Downloads a message's file; .torrent files go to qBittorrent (saving into the games folder) or the default client. */
@@ -173,6 +224,12 @@ export interface LauncherApi {
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
   telegramCommand(command: string): Promise<Result<null>>
   readClipboard(): Promise<string>
+  storage(): Promise<StorageInfo | null>
+  setQbWebPassword(password: string): Promise<Settings>
+  getDownloads(): Promise<DownloadsStatus>
+  onDownloads(cb: (s: DownloadsStatus) => void): () => void
+  /** Main process changed the library (download added a game, finished download rescanned). */
+  onLibraryChanged(cb: (message: string | null) => void): () => void
   onTelegramThread(cb: (t: TgThread) => void): () => void
   onTelegramProgress(cb: (p: TgDownloadProgress) => void): () => void
   onGameEnded(cb: (e: GameEndedEvent) => void): () => void

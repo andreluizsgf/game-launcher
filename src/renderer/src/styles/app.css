@@ -376,3 +376,29 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .tg-action.focused { background: var(--fg); color: #0b0d12; transform: scale(1.03); }
 .tg-action.focused .muted { color: rgba(11, 13, 18, 0.6); }
 .tg-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 560px; }
+
+/* Home shelves (Instalados · Baixando · Na biblioteca · Aguardados) */
+.shelves { display: flex; align-items: center; gap: 10px; padding-top: 20px; }
+.shelf {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: var(--fg-dim); font: inherit; font-size: 16px;
+  transition: background 150ms, color 150ms;
+}
+.shelf.active { background: var(--fg); color: #0b0d12; }
+.shelf-count { font-size: 13px; opacity: 0.7; }
+.shelf-hint { color: var(--fg-dim); font-size: 14px; margin-left: 6px; }
+.tile-progress {
+  position: absolute; left: 0; bottom: 0; height: 5px; background: var(--accent);
+  box-shadow: 0 0 8px var(--accent); transition: width 600ms linear;
+}
+.detail-download { max-width: 640px; margin: 0 0 24px; }
+.detail-download .detail-note { margin-bottom: 10px; }
+.progress { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--accent); transition: width 600ms linear; }
+
+/* Free space on the games drive (top bar) */
+.storage { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.storage-bar { width: 56px; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.storage-bar span { display: block; height: 100%; background: var(--fg-dim); }
+.storage.low { color: #ff8a80; }
+.storage.low .storage-bar span { background: #ff8a80; }

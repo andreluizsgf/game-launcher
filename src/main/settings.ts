@@ -17,6 +17,9 @@ export interface StoredSettings {
   telegramSessionEnc: string | null
   /** Overrides qBittorrent auto-detection. */
   qbittorrentPath: string | null
+  qbWebUrl: string
+  qbWebUser: string | null
+  qbWebPasswordEnc: string | null
 }
 
 const DEFAULTS: StoredSettings = {
@@ -29,7 +32,10 @@ const DEFAULTS: StoredSettings = {
   telegramPeer: null,
   telegramTemplate: '{title}',
   telegramSessionEnc: null,
-  qbittorrentPath: null
+  qbittorrentPath: null,
+  qbWebUrl: 'http://localhost:8080',
+  qbWebUser: null,
+  qbWebPasswordEnc: null
 }
 const file = () => join(app.getPath('userData'), 'settings.json')
 
@@ -60,7 +66,10 @@ export function publicSettings(s: StoredSettings): Settings {
     telegramPeer: s.telegramPeer,
     telegramTemplate: s.telegramTemplate,
     telegramLoggedIn: !!s.telegramSessionEnc,
-    qbittorrentPath: findQbittorrent(s.qbittorrentPath)
+    qbittorrentPath: findQbittorrent(s.qbittorrentPath),
+    qbWebUrl: s.qbWebUrl,
+    qbWebUser: s.qbWebUser,
+    hasQbWebPassword: !!s.qbWebPasswordEnc
   }
 }
 
