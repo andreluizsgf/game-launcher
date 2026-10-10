@@ -18,8 +18,14 @@ interface Props {
 export function StoreDetail({ game, telegramPeer, onAdd, onShowInLibrary, onClose }: Props) {
   const [sel, setSel] = useState(0)
   const [busy, setBusy] = useState(false)
-  const tg = useTelegramThread(game.name, !!telegramPeer)
   const [tgOpen, setTgOpen] = useState(false)
+  // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
+  const [tgAsked, setTgAsked] = useState(false)
+  const tg = useTelegramThread(game.name, !!telegramPeer && tgAsked)
+  const openTelegram = () => {
+    setTgAsked(true)
+    setTgOpen(true)
+  }
   const upcoming = !!game.releaseDate && game.releaseDate > Date.now()
   const items = [
     game.inLibraryId
@@ -33,7 +39,7 @@ export function StoreDetail({ game, telegramPeer, onAdd, onShowInLibrary, onClos
             setBusy(false)
           }
         },
-    ...(telegramPeer ? [{ label: telegramMenuLabel(tg.state), run: () => setTgOpen(true) }] : []),
+    ...(telegramPeer ? [{ label: telegramMenuLabel(tg.state), run: openTelegram }] : []),
     { label: 'Voltar', run: onClose }
   ]
 

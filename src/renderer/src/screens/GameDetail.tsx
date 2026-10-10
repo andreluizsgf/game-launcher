@@ -23,8 +23,14 @@ type Item = { id: 'play' | 'telegram' | 'identify' | 'remove' | 'back'; label: s
 
 export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, onIdentify, onRemove, onClose }: Props) {
   const installed = !!game.folder
-  const tg = useTelegramThread(game.title, !!telegramPeer)
   const [tgOpen, setTgOpen] = useState(false)
+  // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
+  const [tgAsked, setTgAsked] = useState(false)
+  const tg = useTelegramThread(game.title, !!telegramPeer && tgAsked)
+  const openTelegram = () => {
+    setTgAsked(true)
+    setTgOpen(true)
+  }
   const items: Item[] = [
     ...(installed ? [{ id: 'play', label: running ? 'Em execução' : 'Jogar', disabled: !game.exePath || running } as Item] : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
@@ -37,7 +43,7 @@ export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, o
   const run = (it: Item) => {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
-    else if (it.id === 'telegram') setTgOpen(true)
+    else if (it.id === 'telegram') openTelegram()
     else if (it.id === 'identify') onIdentify(game)
     else if (it.id === 'remove') onRemove(game)
     else onClose()

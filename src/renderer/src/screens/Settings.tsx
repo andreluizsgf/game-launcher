@@ -23,7 +23,7 @@ type TgField = 'tgApiId' | 'tgApiHash' | 'tgPeer' | 'tgTemplate' | 'tgPhone' | '
 const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean }> = {
   tgApiId: { title: 'Telegram API ID', hint: 'Número do app criado em my.telegram.org → API development tools.' },
   tgApiHash: { title: 'Telegram API Hash', hint: 'Dá pra colar com Ctrl+V.', secret: true },
-  tgPeer: { title: 'Canal / bot do Telegram', hint: '@usuario ou link t.me — recebe o nome do jogo ao abrir o detalhe.' },
+  tgPeer: { title: 'Canal / bot do Telegram', hint: '@usuario ou link t.me — recebe o nome do jogo quando você aperta Telegram no detalhe.' },
   tgTemplate: { title: 'Mensagem enviada', hint: '{title} vira o nome do jogo. Ex.: /search {title}' },
   tgPhone: { title: 'Seu telefone', hint: 'Com DDI, ex.: +5511999998888. O Telegram vai mandar um código.' },
   tgCode: { title: 'Código do Telegram', hint: 'Chegou no app do Telegram (ou por SMS).' },
@@ -133,7 +133,7 @@ export function Settings(props: Props) {
         </p>
         <p className="settings-note">
           Telegram: crie um app em my.telegram.org (API development tools) para obter API ID e Hash, defina o canal ou
-          bot e entre com sua conta. Ao abrir o detalhe de um jogo, o nome dele é enviado e as respostas aparecem em
+          bot e entre com sua conta. No detalhe de um jogo, o botão Telegram envia o nome dele e mostra as respostas em
           “Telegram”. Hash e sessão ficam criptografados. Torrents vão pro qBittorrent (detectado automaticamente)
           baixando direto na pasta de jogos.
         </p>
