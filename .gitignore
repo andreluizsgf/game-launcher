@@ -3,3 +3,5 @@ out
 dist
 fixtures/games
 *.log
+.DS_Store
+*.tsbuildinfo
