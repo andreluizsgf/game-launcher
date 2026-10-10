@@ -16,15 +16,26 @@ interface Props {
   /** Telegram peer to query on open; null when Telegram isn't set up. */
   telegramPeer: string | null
   onLaunch(g: Game): void
+  onResume(): void
+  /** Force-closes the running game. */
+  onStop(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
 }
 
-type Item = { id: 'play' | 'telegram' | 'identify' | 'remove' | 'back'; label: string; disabled?: boolean }
+type Item = {
+  id: 'play' | 'resume' | 'stop' | 'telegram' | 'identify' | 'remove' | 'back'
+  label: string
+  disabled?: boolean
+  danger?: boolean
+}
 
 export function GameDetail(props: Props) {
-  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onIdentify, onRemove, onClose } = props
+  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop, onIdentify, onRemove, onClose } =
+    props
+  // "Fechar jogo" needs a second press: unsaved progress is lost.
+  const [confirmStop, setConfirmStop] = useState(false)
   // A folder that's still downloading isn't playable yet.
   const installed = !!game.folder && !download
   const [tgOpen, setTgOpen] = useState(false)
@@ -36,7 +47,14 @@ export function GameDetail(props: Props) {
     setTgOpen(true)
   }
   const items: Item[] = [
-    ...(installed ? [{ id: 'play', label: running ? 'Em execução' : 'Jogar', disabled: !game.exePath || running } as Item] : []),
+    ...(running
+      ? [
+          { id: 'resume', label: 'Voltar ao jogo' } as Item,
+          { id: 'stop', label: confirmStop ? 'Confirmar: fechar jogo' : 'Fechar jogo', danger: confirmStop } as Item
+        ]
+      : installed
+        ? [{ id: 'play', label: 'Jogar', disabled: !game.exePath } as Item]
+        : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
     ...(!game.folder ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
@@ -47,6 +65,11 @@ export function GameDetail(props: Props) {
   const run = (it: Item) => {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
+    else if (it.id === 'resume') onResume()
+    else if (it.id === 'stop') {
+      if (confirmStop) onStop(game)
+      else setConfirmStop(true)
+    }
     else if (it.id === 'telegram') openTelegram()
     else if (it.id === 'identify') onIdentify(game)
     else if (it.id === 'remove') onRemove(game)
@@ -55,6 +78,7 @@ export function GameDetail(props: Props) {
 
   useInput((a) => {
     if (a === 'back' || a === 'details') return onClose()
+    if (a === 'left' || a === 'right') setConfirmStop(false)
     if (a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') run(items[sel])
@@ -99,6 +123,7 @@ export function GameDetail(props: Props) {
             </p>
           )}
           {game.summary && <p className="summary">{game.summary}</p>}
+          {confirmStop && <p className="detail-note">O progresso não salvo será perdido.</p>}
           {installed && (
             <p className="path" title={game.exeOverride ?? game.exePath ?? ''}>
               {game.exeOverride ?? game.exePath ?? 'Nenhum executável encontrado'}
@@ -108,7 +133,7 @@ export function GameDetail(props: Props) {
             {items.map((it, i) => (
               <button
                 key={it.id}
-                className={`menu-item ${sel === i ? 'focused' : ''}`}
+                className={`menu-item ${sel === i ? 'focused' : ''} ${it.danger ? 'danger' : ''}`}
                 disabled={it.disabled}
                 onClick={() => {
                   setSel(i)

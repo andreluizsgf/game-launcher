@@ -95,6 +95,11 @@ export function Settings(props: Props) {
       disabled: true
     },
     { label: 'Tela cheia', value: settings.fullscreen ? 'Ligado' : 'Desligado', run: onToggleFullscreen },
+    {
+      label: 'Abrir ao ligar o PC',
+      value: settings.openAtLogin ? 'Ligado · em tela cheia' : 'Desligado',
+      run: async () => onSettings(await window.api.setSettings({ openAtLogin: !settings.openAtLogin }))
+    },
     { label: 'IGDB Client ID', value: settings.igdbClientId ?? 'Não definido', run: () => setEditing('clientId') },
     { label: 'IGDB Client Secret', value: settings.hasIgdbSecret ? '••••••••' : 'Não definido', run: () => setEditing('secret') },
     { label: 'Telegram API ID', value: settings.telegramApiId?.toString() ?? 'Não definido', run: () => setEditing('tgApiId') },

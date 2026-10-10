@@ -27,6 +27,8 @@ interface Props {
   setFocus(i: number): void
   active: boolean
   runningId: number | null
+  /** Back to the running game (launcher brought up over it). */
+  onResume(): void
   onLaunch(g: Game): void
   onDetails(g: Game): void
   onSettings(): void
@@ -36,7 +38,7 @@ interface Props {
 
 export function Home(props: Props) {
   const { games, totalGames, shelves, shelf, onShelf, downloads } = props
-  const { focus, setFocus, active, runningId, onLaunch, onDetails, onSettings, onSearch, onTab } = props
+  const { focus, setFocus, active, runningId, onResume, onLaunch, onDetails, onSettings, onSearch, onTab } = props
   const rowRef = useRef<HTMLDivElement>(null)
   const game = games[focus] ?? null
   const dl = game ? downloads.get(game.id) : undefined
@@ -47,6 +49,7 @@ export function Home(props: Props) {
     if (a === 'secondary') return onSearch()
     if (a === 'pageLeft') return onTab(-1)
     if (a === 'pageRight') return onTab(1)
+    if (a === 'back' && runningId != null) return onResume()
     if (a === 'up') return onShelf(-1)
     if (a === 'down') return onShelf(1)
     if (!game) return
@@ -140,11 +143,11 @@ export function Home(props: Props) {
           <div className="hero-actions">
             <button
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
-              disabled={!game.folder || !game.exePath || !!dl}
+              disabled={runningId !== game.id && (!game.folder || !game.exePath || !!dl)}
               onClick={() => onLaunch(game)}
             >
               {runningId === game.id
-                ? 'Em execução'
+                ? 'Voltar ao jogo'
                 : dl
                   ? `Baixando ${Math.floor(dl.progress * 100)}%`
                   : !game.folder
@@ -170,6 +173,7 @@ export function Home(props: Props) {
 
       <ButtonHints
         hints={[
+          ...(runningId != null ? [{ button: '○' as const, label: 'Voltar ao jogo' }] : []),
           { button: '✕', label: 'Jogar' },
           { button: '△', label: 'Detalhes' },
           { button: '□', label: 'Adicionar jogo' },

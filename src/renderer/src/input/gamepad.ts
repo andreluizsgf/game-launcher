@@ -1,5 +1,5 @@
 import { inputBus, type Action } from './actions'
-import { hidPads } from './hidPads'
+import { hidPads, liveHidPads } from './hidPads'
 import { setInputMode } from './mode'
 
 // Standard Gamepad API mapping (DualSense via USB/BT in Chromium).
@@ -41,9 +41,14 @@ interface Pad {
 /**
  * Pads to read. If any Sony pad is connected, ignore the rest — in Marco 2 the input
  * helper (and Steam Input) exposes a virtual Xbox 360 pad that must not drive the launcher twice.
- * Sony pads the Gamepad API misses (DualSense over Bluetooth on Windows) come from WebHID.
+ *
+ * Sony pads come from WebHID whenever it's receiving reports: Chromium's Gamepad API can list a
+ * DualSense yet return frozen zeros (connected over Bluetooth after launch, or switched by Steam to
+ * a report format Chromium doesn't decode). HID parses every format, so it wins while it's live.
  */
 function activePads(): Pad[] {
+  const live = liveHidPads()
+  if (live.length) return live.map((h) => ({ id: h.id, ...h.state }))
   const pads: Pad[] = navigator
     .getGamepads()
     .filter((p): p is Gamepad => !!p && p.connected)

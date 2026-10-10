@@ -11,7 +11,6 @@ import { startMouseTracking } from './input/mode'
 import { activeDownloads, groupShelves, SHELF_LABEL, SHELF_ORDER, stepShelf, type Shelf } from './library/shelves'
 import { GameDetail } from './screens/GameDetail'
 import { Home } from './screens/Home'
-import { QuickMenu } from './screens/QuickMenu'
 import { Search, type SearchMode } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -40,9 +39,6 @@ export function App() {
   /** Game to focus once the list/shelves update (after reloads, "Ver na biblioteca"…). */
   const [focusTarget, setFocusTarget] = useState<number | null>(null)
   const [storage, setStorage] = useState<StorageInfo | null>(null)
-  /** In-game quick menu open, and when the current session started. */
-  const [quickMenu, setQuickMenu] = useState(false)
-  const [sessionStart, setSessionStart] = useState(0)
   const runningRef = useRef<number | null>(null)
   runningRef.current = runningId
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -114,7 +110,13 @@ export function App() {
         setTab('games')
       }
     )
-    const offOverlay = window.api.onOverlay(setQuickMenu)
+    // PS button / Ctrl+Shift+G during a game: the launcher comes up as usual, focused on the running game.
+    const offOverlay = window.api.onOverlay((open) => {
+      if (!open || runningRef.current == null) return
+      setOverlay({ kind: 'none' })
+      setTab('games')
+      setFocusTarget(runningRef.current)
+    })
     const stopHid = startHidPads()
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
@@ -124,13 +126,9 @@ export function App() {
       if (msg) notify(msg)
       reload()
     })
-    const offStart = window.api.onGameStarted((id) => {
-      setRunningId(id)
-      setSessionStart(Date.now())
-    })
+    const offStart = window.api.onGameStarted((id) => setRunningId(id))
     const offEnd = window.api.onGameEnded(({ gameId, seconds }) => {
       setRunningId(null)
-      setQuickMenu(false)
       notify(`Sessão encerrada · ${formatPlaytime(seconds)}`)
       reload(gameId)
     })
@@ -147,13 +145,20 @@ export function App() {
     }
   }, [notify, reload])
 
+  const resumeGame = () => window.api.overlayHide()
+  const stopGame = async (g: Game) => {
+    const res = await window.api.stopGame(g.id)
+    if (!res.ok) notify(res.error)
+  }
+
   const launch = async (g: Game) => {
-    if (runningId === g.id) return
+    if (runningId === g.id) return void resumeGame()
     const res = await window.api.launch(g.id)
     if (!res.ok) notify(res.error)
   }
 
   const onHomeConfirm = (g: Game) => {
+    if (runningId === g.id) return void resumeGame()
     if (g.folder && !dlByGame.has(g.id)) return launch(g)
     // Not installed: show where to put it instead of failing silently.
     setOverlay({ kind: 'detail', gameId: g.id })
@@ -175,7 +180,11 @@ export function App() {
   return (
     <div className="app">
       <Background art={tab === 'games' ? homeArt : storeArt} />
-      <TopBar pad={pad} storage={storage} tab={tab} onTab={(t) => overlay.kind === 'none' && setTab(t)} />
+      <TopBar
+        pad={pad}
+        storage={storage}
+        playing={runningId != null ? (games.find((g) => g.id === runningId)?.title ?? null) : null}
+        tab={tab} onTab={(t) => overlay.kind === 'none' && setTab(t)} />
       <Store
         active={tab === 'store' && overlay.kind === 'none'}
         libraryVersion={libraryVersion}
@@ -207,6 +216,7 @@ export function App() {
           setFocus={setFocus}
           active={tab === 'games' && overlay.kind === 'none'}
           runningId={runningId}
+          onResume={resumeGame}
           onLaunch={onHomeConfirm}
           onDetails={(g) => setOverlay({ kind: 'detail', gameId: g.id })}
           onSettings={() => setOverlay({ kind: 'settings' })}
@@ -237,6 +247,8 @@ export function App() {
           gamesRoot={settings?.gamesRoot ?? null}
           telegramPeer={telegramPeer}
           onLaunch={launch}
+          onResume={resumeGame}
+          onStop={stopGame}
           onIdentify={(g) => setOverlay({ kind: 'search', mode: { kind: 'link', game: g } })}
           onRemove={async (g) => {
             const res = await window.api.removeGame(g.id)
@@ -285,17 +297,6 @@ export function App() {
           storage={storage}
           notify={notify}
           onClose={() => setOverlay({ kind: 'none' })}
-        />
-      )}
-      {quickMenu && runningId != null && games.find((g) => g.id === runningId) && (
-        <QuickMenu
-          game={games.find((g) => g.id === runningId)!}
-          startedAt={sessionStart}
-          onResume={() => window.api.overlayHide()}
-          onQuit={async () => {
-            const res = await window.api.stopGame(runningId)
-            if (!res.ok) notify(res.error)
-          }}
         />
       )}
       <Toast message={toast} />

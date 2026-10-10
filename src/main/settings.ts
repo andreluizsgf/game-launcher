@@ -8,6 +8,7 @@ import { findQbittorrent } from './telegram/qbittorrent'
 export interface StoredSettings {
   gamesRoot: string | null
   fullscreen: boolean
+  openAtLogin: boolean
   igdbClientId: string | null
   igdbSecretEnc: string | null
   telegramApiId: number | null
@@ -25,6 +26,7 @@ export interface StoredSettings {
 const DEFAULTS: StoredSettings = {
   gamesRoot: null,
   fullscreen: false,
+  openAtLogin: false,
   igdbClientId: null,
   igdbSecretEnc: null,
   telegramApiId: null,
@@ -59,6 +61,7 @@ export function publicSettings(s: StoredSettings): Settings {
   return {
     gamesRoot: s.gamesRoot,
     fullscreen: s.fullscreen,
+    openAtLogin: s.openAtLogin,
     igdbClientId: s.igdbClientId,
     hasIgdbSecret: !!s.igdbSecretEnc || !!process.env.IGDB_CLIENT_SECRET,
     telegramApiId: s.telegramApiId,
@@ -89,6 +92,20 @@ export function decrypt(enc: string | null): string | null {
 
 export function setIgdbSecret(s: StoredSettings, secret: string): void {
   s.igdbSecretEnc = encrypt(secret)
+}
+
+/** Argument the login item starts the launcher with: forces fullscreen. */
+export const AUTOSTART_ARG = '--autostart'
+
+/**
+ * Registers/unregisters the launcher as a Windows login item. The portable build runs from a temp
+ * copy, so the item points at the original .exe; re-applied on every start because each version's
+ * portable file has a new name.
+ */
+export function applyOpenAtLogin(enabled: boolean): void {
+  if (!app.isPackaged) return
+  const path = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
+  app.setLoginItemSettings({ openAtLogin: enabled, path, args: [AUTOSTART_ARG] })
 }
 
 /** Accepts `@name`, `name` or a t.me link. */

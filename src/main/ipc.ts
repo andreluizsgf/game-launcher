@@ -13,6 +13,7 @@ import type { Runner } from './library/runner'
 import { QbWebApi } from './downloads/qbWebApi'
 import { DownloadWatcher } from './downloads/watcher'
 import {
+  applyOpenAtLogin,
   decrypt,
   encrypt,
   igdbCredentials,
@@ -182,6 +183,10 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       if (patch.telegramApiId !== undefined) settings.telegramApiId = patch.telegramApiId || null
       if (patch.telegramPeer !== undefined) settings.telegramPeer = patch.telegramPeer ? normalizePeer(patch.telegramPeer) : null
       await telegram.reset()
+    }
+    if (patch.openAtLogin !== undefined) {
+      settings.openAtLogin = patch.openAtLogin
+      applyOpenAtLogin(patch.openAtLogin)
     }
     if (patch.fullscreen !== undefined) {
       settings.fullscreen = patch.fullscreen

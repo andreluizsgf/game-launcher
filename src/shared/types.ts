@@ -26,6 +26,8 @@ export interface Game {
 export interface Settings {
   gamesRoot: string | null
   fullscreen: boolean
+  /** Start with Windows, straight into fullscreen. */
+  openAtLogin: boolean
   igdbClientId: string | null
   /** The secret itself never leaves the main process. */
   hasIgdbSecret: boolean
@@ -49,6 +51,7 @@ export type SettingsPatch = Partial<
     Settings,
     | 'gamesRoot'
     | 'fullscreen'
+    | 'openAtLogin'
     | 'igdbClientId'
     | 'telegramApiId'
     | 'telegramPeer'

@@ -6,7 +6,7 @@ import { GamesRepo } from './db/games'
 import { runDevSnapshot } from './devSnapshot'
 import { registerIpc } from './ipc'
 import { Runner } from './library/runner'
-import { loadSettings } from './settings'
+import { applyOpenAtLogin, AUTOSTART_ARG, loadSettings } from './settings'
 
 // Local covers are served through media://local/<encoded absolute path>
 protocol.registerSchemesAsPrivileged([
@@ -66,6 +66,7 @@ function createWindow(fullscreen: boolean): void {
     width: 1600,
     height: 900,
     fullscreen,
+    icon: app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(__dirname, '../../resources/icon.png'),
     backgroundColor: '#05070d',
     autoHideMenuBar: true,
     show: false,
@@ -114,7 +115,6 @@ app.whenReady().then(async () => {
       sessions.delete(game.id)
       if (sessionId) repo.endSession(sessionId, game.id, endedAt, seconds)
       globalShortcut.unregister(OVERLAY_SHORTCUT)
-      overlayOpen = false
       if (win) {
         bringToFront(win, settings.fullscreen)
         win.webContents.send('game:ended', { gameId: game.id, seconds })
@@ -123,24 +123,22 @@ app.whenReady().then(async () => {
   })
 
   /**
-   * In-game quick menu (PS button / Ctrl+Shift+G): the launcher comes in front of the game with
-   * "back to game" and "close game". Not drawn inside the game — exclusive-fullscreen games minimize.
+   * Launcher over the running game (PS button / Ctrl+Shift+G), fully navigable; "Voltar ao jogo" sends
+   * it back. Not drawn inside the game — exclusive-fullscreen games minimize, like Alt+Tab.
    */
-  let overlayOpen = false
   const showOverlay = () => {
     if (!win || runner.current() == null) return
-    overlayOpen = true
     bringToFront(win, settings.fullscreen)
     win.webContents.send('overlay:state', true)
   }
   const hideOverlay = () => {
-    if (!win || !overlayOpen) return
-    overlayOpen = false
+    // Also when the user Alt+Tabbed here instead of using the shortcut.
+    if (!win || runner.current() == null) return
     win.webContents.send('overlay:state', false)
     getOutOfTheWay(win)
   }
   function toggleOverlay(): void {
-    if (overlayOpen && win?.isFocused()) hideOverlay()
+    if (win?.isFocused() && !win.isMinimized()) hideOverlay()
     else showOverlay()
   }
   ipcMain.handle('overlay:toggle', () => toggleOverlay())
@@ -155,7 +153,9 @@ app.whenReady().then(async () => {
   })
 
   registerIpc({ repo, runner, settings, getWindow: () => win })
-  createWindow(settings.fullscreen)
+  if (settings.openAtLogin) applyOpenAtLogin(true)
+  // Started with Windows: go straight to fullscreen, console-style.
+  createWindow(settings.fullscreen || process.argv.includes(AUTOSTART_ARG))
 
   app.on('before-quit', () => {
     globalShortcut.unregisterAll()

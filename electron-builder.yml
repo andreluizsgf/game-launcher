@@ -5,9 +5,14 @@ directories:
 files:
   - out/**
   - package.json
+extraResources:
+  # Window/taskbar icon at runtime (the exe icon comes from win.icon).
+  - from: resources/icon.png
+    to: icon.png
 asarUnpack:
   - node_modules/better-sqlite3/**
 win:
+  icon: resources/icon.png
   target:
     - nsis
     - portable

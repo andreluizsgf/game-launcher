@@ -13,6 +13,8 @@ const TABS: { id: Tab; label: string }[] = [
 interface Props {
   pad: PadStatus
   storage: StorageInfo | null
+  /** Title of the game running right now. */
+  playing: string | null
   tab: Tab
   onTab(t: Tab): void
 }
@@ -20,7 +22,7 @@ interface Props {
 /** Below this share of free space the indicator turns red. */
 const LOW_SPACE = 0.1
 
-export function TopBar({ pad, storage, tab, onTab }: Props) {
+export function TopBar({ pad, storage, playing, tab, onTab }: Props) {
   const mode = useInputMode()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -44,6 +46,7 @@ export function TopBar({ pad, storage, tab, onTab }: Props) {
         </button>
       </nav>
       <div className="topbar-right">
+        {playing && <span className="now-playing">▶ Jogando {playing}</span>}
         {storage && storage.total > 0 && (
           <span
             className={`storage ${storage.free / storage.total < LOW_SPACE ? 'low' : ''}`}

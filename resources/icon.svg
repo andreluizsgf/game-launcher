@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f7cf6"/>
+      <stop offset="1" stop-color="#6a3df0"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#shine)"/>
+  <!-- controller body -->
+  <path fill="#f4f6fb" d="M330 340h364c84 0 142 50 166 140l52 196c22 82-18 150-88 150-44 0-74-24-102-62l-38-52c-14-18-30-26-54-26H394c-24 0-40 8-54 26l-38 52c-28 38-58 62-102 62-70 0-110-68-88-150l52-196c24-90 82-140 166-140z"/>
+  <!-- d-pad -->
+  <path fill="#3d5fe0" d="M318 450h44v54h54v44h-54v54h-44v-54h-54v-44h54z"/>
+  <!-- face buttons -->
+  <circle cx="676" cy="462" r="27" fill="#3d5fe0"/>
+  <circle cx="730" cy="526" r="27" fill="#3d5fe0"/>
+  <circle cx="622" cy="526" r="27" fill="#3d5fe0"/>
+  <circle cx="676" cy="590" r="27" fill="#3d5fe0"/>
+</svg>

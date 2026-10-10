@@ -409,3 +409,4 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .quick-menu-art { width: 240px; height: 240px; border-radius: 18px; object-fit: cover; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
 .quick-menu h1 { font-size: 48px; font-weight: 300; margin: 6px 0 28px; }
 .menu-item.danger.focused { background: #ff6b5e; color: #0b0d12; }
+.now-playing { padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--fg); font-size: 15px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
