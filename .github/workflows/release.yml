@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    # windows-latest ships VS 2026, which node-gyp (better-sqlite3 build) does not detect yet.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
