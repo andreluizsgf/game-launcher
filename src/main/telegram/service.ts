@@ -14,6 +14,7 @@ import {
   describeFile,
   extractButtons,
   extractCommands,
+  gameFolderName,
   extractLinks,
   isBotCommand,
   isNoResults,
@@ -29,6 +30,8 @@ const LISTEN_MS = 3 * 60_000
 const REUSE_MS = 30 * 60_000
 
 interface Thread {
+  /** Game title the query was made for; names the folder the download goes into. */
+  title: string
   query: string
   sentAt: number
   /** Last time anything was sent for this thread (query or command); replies are accepted after it. */
@@ -140,6 +143,7 @@ export class TelegramService {
     const c = await this.connected()
     const peer = await this.peer(c)
     const t: Thread = {
+      title,
       query: text,
       sentAt: Date.now(),
       lastSentAt: Date.now(),
@@ -152,18 +156,27 @@ export class TelegramService {
     return this.view(t)
   }
 
-  private find(msgId: number): Api.Message {
-    for (const t of this.threads.values()) {
-      const m = t.raw.get(msgId)
-      if (m) return m
+  private find(msgId: number): { msg: Api.Message; thread: Thread } {
+    for (const thread of this.threads.values()) {
+      const msg = thread.raw.get(msgId)
+      if (msg) return { msg, thread }
     }
     throw new Error('Mensagem não encontrada — busque de novo')
+  }
+
+  /**
+   * `<games folder>/<game title>`: the torrent's own folder (often a release name like
+   * "Control_Resonant_P_RUS_+_ENG") lands inside one the scanner recognizes by title.
+   */
+  private savePathFor(title: string | undefined): string | null {
+    const root = this.settings.gamesRoot
+    return root && title ? join(root, gameFolderName(title)) : root
   }
 
   async openLink(url: string): Promise<'qbittorrent' | 'default'> {
     if (!isOpenable(url)) throw new Error('Link não suportado')
     if (/^magnet:/i.test(url)) {
-      const via = await this.openTorrent(url)
+      const via = await this.openTorrent(url, this.savePathFor(this.active?.title))
       return via === 'qbittorrent' ? via : 'default'
     }
     await shell.openExternal(url)
@@ -171,7 +184,7 @@ export class TelegramService {
   }
 
   async download(msgId: number): Promise<string> {
-    const msg = this.find(msgId)
+    const { msg, thread } = this.find(msgId)
     const c = await this.connected()
     const f = msg.file
     if (!f) throw new Error('Mensagem sem arquivo')
@@ -185,18 +198,19 @@ export class TelegramService {
       progressCallback: (done) =>
         total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
     })
-    const openedWith = info.torrent ? await this.openTorrent(path) : 'folder'
+    const savePath = this.savePathFor(thread.title)
+    const openedWith = info.torrent ? await this.openTorrent(path, savePath) : 'folder'
     if (openedWith === 'folder') shell.showItemInFolder(path)
-    this.events.progress({ msgId, ratio: 1, openedWith, savePath: this.settings.gamesRoot })
+    this.events.progress({ msgId, ratio: 1, openedWith, savePath })
     return path
   }
 
-  /** qBittorrent saving into the games folder when installed; the OS default handler otherwise. */
-  private async openTorrent(torrent: string): Promise<'qbittorrent' | 'default' | 'folder'> {
+  /** qBittorrent saving into `savePath` when installed; the OS default handler otherwise. */
+  private async openTorrent(torrent: string, savePath: string | null): Promise<'qbittorrent' | 'default' | 'folder'> {
     const qb = findQbittorrent(this.settings.qbittorrentPath)
     if (qb) {
       try {
-        await addToQbittorrent(qb, torrent, this.settings.gamesRoot)
+        await addToQbittorrent(qb, torrent, savePath)
         return 'qbittorrent'
       } catch {
         // Fall through to the default handler.
@@ -220,7 +234,7 @@ export class TelegramService {
   }
 
   async press(msgId: number, row: number, col: number): Promise<void> {
-    const msg = this.find(msgId)
+    const { msg } = this.find(msgId)
     await this.connected()
     await msg.click({ i: row, j: col })
   }

@@ -13,7 +13,7 @@ const file = (p: string, size = 10) => {
 file('Hades/Hades.exe', 100)
 file('Hades/unins000.exe', 500)
 file('Hades/cover.jpg')
-file('Deep/a/b/c/d/too-deep.exe') // depth 4 under game folder → ignored
+file('Deep/a/b/c/d/e/too-deep.exe') // depth 5 under game folder → ignored
 file('Deep/a/shallow.exe')
 mkdirSync(join(root, 'Empty'))
 mkdirSync(join(root, '.hidden'))

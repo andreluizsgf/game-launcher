@@ -9,7 +9,8 @@ export interface ScannedGame {
   coverPath: string | null
 }
 
-const MAX_DEPTH = 3
+/** 4 levels: downloads add one (<games>/<title>/<release folder>/bin/game.exe). */
+const MAX_DEPTH = 4
 const COVER_NAMES = ['cover.jpg', 'cover.png', 'cover.webp', 'folder.jpg', 'folder.png']
 
 async function collectExes(root: string, rel = '', depth = 0, out: ExeCandidate[] = []): Promise<ExeCandidate[]> {

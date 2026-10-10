@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { titlesMatch } from '@shared/titleKey'
+import { titleFromFolder } from '../library/exePicker'
 import {
   describeFile,
   extractButtons,
   extractCommands,
   extractLinks,
+  gameFolderName,
   isBotCommand,
   isNoResults,
   isOpenable,
@@ -113,5 +116,19 @@ describe('isNoResults', () => {
   it('detects the empty answer', () => {
     expect(isNoResults('❌Torrents encontrados: 0❌\n\nNenhum torrent encontrado')).toBe(true)
     expect(isNoResults('✅Torrents encontrados: 10✅')).toBe(false)
+  })
+})
+
+describe('gameFolderName', () => {
+  it('makes Windows-safe names that still match the title', () => {
+    expect(gameFolderName('Control Resonant')).toBe('Control Resonant')
+    expect(gameFolderName('Hades II: Edição Completa')).toBe('Hades II - Edição Completa')
+    expect(gameFolderName('What? <Game>/"X"|Y*.')).toBe('What GameXY')
+    expect(gameFolderName('  :  ')).toBe('-')
+  })
+
+  it('round-trips through the scanner title matching', () => {
+    const title = 'The Witcher 3: Wild Hunt'
+    expect(titlesMatch(titleFromFolder(gameFolderName(title)), title)).toBe(true)
   })
 })

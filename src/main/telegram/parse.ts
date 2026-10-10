@@ -133,3 +133,18 @@ export function safeFileName(name: string): string {
       .slice(0, 180) || 'arquivo'
   )
 }
+
+/**
+ * Folder name for a game title, valid on Windows and matched back to the title by the scanner
+ * (titleKeys treats " - " like ":"): "Hades II: Edição" → "Hades II - Edição".
+ */
+export function gameFolderName(title: string): string {
+  return (
+    title
+      .replace(/\s*:\s*/g, ' - ')
+      .replace(/[<>"/\\|?*\x00-\x1f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/[. ]+$/, '') || 'Jogo'
+  )
+}
