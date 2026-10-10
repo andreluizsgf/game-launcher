@@ -184,6 +184,23 @@ export class GamesRepo {
     return this.get(gameId)!
   }
 
+  /**
+   * After the folder is gone: catalog games stay in the library as not installed; folder-only games
+   * are hidden (like a rescan would), keeping their playtime if the folder comes back.
+   */
+  uninstall(gameId: number): void {
+    this.db
+      .prepare(
+        `UPDATE games SET
+           folder = CASE WHEN igdb_id IS NULL THEN folder ELSE NULL END,
+           exe_path = CASE WHEN igdb_id IS NULL THEN exe_path ELSE NULL END,
+           exe_override = CASE WHEN igdb_id IS NULL THEN exe_override ELSE NULL END,
+           hidden = CASE WHEN igdb_id IS NULL THEN 1 ELSE hidden END
+         WHERE id = ?`
+      )
+      .run(gameId)
+  }
+
   /** Only catalog-only games can be removed; installed ones come back on rescan anyway. */
   removeCatalog(gameId: number): boolean {
     const res = this.db.prepare('DELETE FROM games WHERE id = ? AND folder IS NULL').run(gameId)

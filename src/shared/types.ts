@@ -196,6 +196,8 @@ export interface LauncherApi {
   rescan(): Promise<ScanResult>
   launch(gameId: number): Promise<Result<null>>
   removeGame(gameId: number): Promise<Result<null>>
+  /** Moves the game folder to the Recycle Bin (and drops its torrent from qBittorrent). */
+  uninstallGame(gameId: number): Promise<Result<null>>
   getSettings(): Promise<Settings>
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>

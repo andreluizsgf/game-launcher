@@ -249,6 +249,13 @@ export function App() {
           onLaunch={launch}
           onResume={resumeGame}
           onStop={stopGame}
+          onUninstall={async (g) => {
+            const res = await window.api.uninstallGame(g.id)
+            if (!res.ok) return notify(res.error)
+            notify(`${g.title} desinstalado — a pasta está na Lixeira`)
+            if (!g.igdbId) setOverlay({ kind: 'none' })
+            await reload(g.igdbId ? g.id : undefined)
+          }}
           onIdentify={(g) => setOverlay({ kind: 'search', mode: { kind: 'link', game: g } })}
           onRemove={async (g) => {
             const res = await window.api.removeGame(g.id)

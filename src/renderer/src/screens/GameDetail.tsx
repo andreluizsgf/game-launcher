@@ -19,23 +19,25 @@ interface Props {
   onResume(): void
   /** Force-closes the running game. */
   onStop(g: Game): void
+  /** Moves the game folder to the Recycle Bin. */
+  onUninstall(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
 }
 
 type Item = {
-  id: 'play' | 'resume' | 'stop' | 'telegram' | 'identify' | 'remove' | 'back'
+  id: 'play' | 'resume' | 'stop' | 'telegram' | 'identify' | 'uninstall' | 'remove' | 'back'
   label: string
   disabled?: boolean
   danger?: boolean
 }
 
 export function GameDetail(props: Props) {
-  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop, onIdentify, onRemove, onClose } =
-    props
-  // "Fechar jogo" needs a second press: unsaved progress is lost.
-  const [confirmStop, setConfirmStop] = useState(false)
+  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop, onUninstall } = props
+  const { onIdentify, onRemove, onClose } = props
+  // Destructive items need a second press.
+  const [confirm, setConfirm] = useState<'stop' | 'uninstall' | null>(null)
   // A folder that's still downloading isn't playable yet.
   const installed = !!game.folder && !download
   const [tgOpen, setTgOpen] = useState(false)
@@ -50,13 +52,31 @@ export function GameDetail(props: Props) {
     ...(running
       ? [
           { id: 'resume', label: 'Voltar ao jogo' } as Item,
-          { id: 'stop', label: confirmStop ? 'Confirmar: fechar jogo' : 'Fechar jogo', danger: confirmStop } as Item
+          {
+            id: 'stop',
+            label: confirm === 'stop' ? 'Confirmar: fechar jogo' : 'Fechar jogo',
+            danger: confirm === 'stop'
+          } as Item
         ]
       : installed
         ? [{ id: 'play', label: 'Jogar', disabled: !game.exePath } as Item]
         : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
+    ...(game.folder && !running
+      ? [
+          {
+            id: 'uninstall',
+            label:
+              confirm === 'uninstall'
+                ? 'Confirmar: desinstalar'
+                : download
+                  ? 'Cancelar download'
+                  : 'Desinstalar',
+            danger: confirm === 'uninstall'
+          } as Item
+        ]
+      : []),
     ...(!game.folder ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
     { id: 'back', label: 'Voltar' }
   ]
@@ -66,9 +86,11 @@ export function GameDetail(props: Props) {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
     else if (it.id === 'resume') onResume()
-    else if (it.id === 'stop') {
-      if (confirmStop) onStop(game)
-      else setConfirmStop(true)
+    else if (it.id === 'stop' || it.id === 'uninstall') {
+      if (confirm !== it.id) return setConfirm(it.id)
+      setConfirm(null)
+      if (it.id === 'stop') onStop(game)
+      else onUninstall(game)
     }
     else if (it.id === 'telegram') openTelegram()
     else if (it.id === 'identify') onIdentify(game)
@@ -78,7 +100,7 @@ export function GameDetail(props: Props) {
 
   useInput((a) => {
     if (a === 'back' || a === 'details') return onClose()
-    if (a === 'left' || a === 'right') setConfirmStop(false)
+    if (a === 'left' || a === 'right') setConfirm(null)
     if (a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') run(items[sel])
@@ -123,7 +145,13 @@ export function GameDetail(props: Props) {
             </p>
           )}
           {game.summary && <p className="summary">{game.summary}</p>}
-          {confirmStop && <p className="detail-note">O progresso não salvo será perdido.</p>}
+          {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}
+          {confirm === 'uninstall' && (
+            <p className="detail-note">
+              A pasta vai pra Lixeira (dá pra restaurar de lá).{' '}
+              {game.igdbId ? 'O jogo continua na biblioteca.' : 'O jogo sai da biblioteca.'}
+            </p>
+          )}
           {installed && (
             <p className="path" title={game.exeOverride ?? game.exePath ?? ''}>
               {game.exeOverride ?? game.exePath ?? 'Nenhum executável encontrado'}

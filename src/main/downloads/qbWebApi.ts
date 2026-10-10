@@ -67,6 +67,15 @@ export class QbWebApi {
     return (await this.request('/api/v2/torrents/info')).json() as Promise<QbTorrent[]>
   }
 
+  /** Removes torrents from qBittorrent; `deleteFiles` false leaves the data on disk. */
+  async remove(hashes: string[], deleteFiles: boolean): Promise<void> {
+    if (!hashes.length) return
+    await this.request('/api/v2/torrents/delete', {
+      method: 'POST',
+      body: new URLSearchParams({ hashes: hashes.join('|'), deleteFiles: String(deleteFiles) })
+    })
+  }
+
   /** Adds a .torrent file or magnet with an explicit save path (automatic management off, so it's honored). */
   async add(torrent: string, savePath: string | null): Promise<void> {
     const form = new FormData()

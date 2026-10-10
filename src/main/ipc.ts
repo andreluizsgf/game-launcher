@@ -1,6 +1,6 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { statfs } from 'fs/promises'
-import { join, parse, resolve } from 'path'
+import { basename, dirname, join, parse, resolve } from 'path'
 import type { StorageInfo } from '@shared/types'
 import type { CatalogHit, Game, Result, Settings, SettingsPatch, StoreSection, TgLoginStep, TgThread } from '@shared/types'
 import { cacheArt } from './catalog/art'
@@ -10,6 +10,7 @@ import { mockSections } from './catalog/storeMock'
 import type { CatalogMeta, GamesRepo } from './db/games'
 import { scanRoot } from './library/scanner'
 import type { Runner } from './library/runner'
+import { gameFolderOf } from './downloads/match'
 import { QbWebApi } from './downloads/qbWebApi'
 import { DownloadWatcher } from './downloads/watcher'
 import {
@@ -105,6 +106,31 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       return ok(null)
     } catch (err) {
       return fail(err)
+    }
+  })
+
+  ipcMain.handle('game:uninstall', async (_e, gameId: number): Promise<Result<null>> => {
+    const game = repo.get(gameId)
+    const root = settings.gamesRoot
+    if (!game?.folder) return fail('Jogo não instalado')
+    if (runner.current() === gameId) return fail('Feche o jogo antes de desinstalar')
+    // Only ever a direct subfolder of the games folder: never the root itself or anything outside it.
+    const norm = (p: string) => resolve(p).replace(/[\\/]+$/, '').toLowerCase()
+    if (!root || norm(dirname(game.folder)) !== norm(root)) {
+      return fail('Por segurança, só jogos dentro da pasta de jogos podem ser desinstalados pelo app')
+    }
+    try {
+      // Drop its torrent first, or qBittorrent keeps it in error ("missing files").
+      const hashes = (await qbWeb.torrents().catch(() => []))
+        .filter((t) => gameFolderOf(t, root) === basename(game.folder!))
+        .map((t) => t.hash)
+      await qbWeb.remove(hashes, false).catch(() => {})
+      await shell.trashItem(game.folder)
+      repo.uninstall(gameId)
+      downloads.poke()
+      return ok(null)
+    } catch (err) {
+      return fail(`Não deu pra mover a pasta pra Lixeira: ${err instanceof Error ? err.message : String(err)}`)
     }
   })
 

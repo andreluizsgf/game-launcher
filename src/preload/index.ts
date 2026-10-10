@@ -12,6 +12,7 @@ const api: LauncherApi = {
   rescan: () => ipcRenderer.invoke('library:rescan'),
   launch: (id) => ipcRenderer.invoke('game:launch', id),
   removeGame: (id) => ipcRenderer.invoke('game:remove', id),
+  uninstallGame: (id) => ipcRenderer.invoke('game:uninstall', id),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   setIgdbSecret: (secret) => ipcRenderer.invoke('settings:setIgdbSecret', secret),
