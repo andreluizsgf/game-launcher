@@ -8,7 +8,12 @@ files:
 asarUnpack:
   - node_modules/better-sqlite3/**
 win:
-  target: nsis
+  target:
+    - nsis
+    - portable
+portable:
+  # Single .exe that runs without installing; settings live in AppData like the installed app.
+  artifactName: ${productName} Portable ${version}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
