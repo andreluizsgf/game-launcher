@@ -53,7 +53,8 @@ const ICON: Record<string, string> = {
 
 const OPENED = {
   qbittorrent: 'Enviado ao qBittorrent — baixando na pasta de jogos',
-  default: 'Aberto no cliente de torrent padrão',
+  noGamesRoot: 'Enviado ao qBittorrent, mas sem pasta de jogos definida — ele usa a pasta padrão dele',
+  default: 'qBittorrent não encontrado (veja Configurações) — aberto no cliente de torrent padrão',
   folder: 'Arquivo salvo em Downloads/Game Launcher'
 }
 
@@ -83,7 +84,9 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
           return setNote(p.error)
         }
         setProgress((s) => ({ ...s, [p.msgId]: p.ratio }))
-        if (p.openedWith) setNote(OPENED[p.openedWith])
+        if (p.openedWith === 'qbittorrent')
+          setNote(p.savePath ? `Enviado ao qBittorrent → ${p.savePath}` : OPENED.noGamesRoot)
+        else if (p.openedWith) setNote(OPENED[p.openedWith])
       }),
     []
   )

@@ -32,7 +32,7 @@ export function Home({ games, focus, setFocus, active, runningId, onLaunch, onDe
     if (a === 'left') setFocus(clamp(focus - 1))
     else if (a === 'right') setFocus(clamp(focus + 1))
     else if (a === 'confirm') onLaunch(game)
-    else if (a === 'details' || a === 'down') onDetails(game)
+    else if (a === 'details') onDetails(game)
   }, active)
 
   // Keep the focused tile anchored near the left edge, like the PS5 home row.

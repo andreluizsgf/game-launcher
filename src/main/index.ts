@@ -31,6 +31,33 @@ function grantSonyHid(w: BrowserWindow): void {
   })
 }
 
+/**
+ * Makes room for the game. Windows ignores minimize() on a fullscreen window, so leave fullscreen first
+ * (bringToFront restores it).
+ */
+function getOutOfTheWay(w: BrowserWindow): void {
+  if (!w.isFullScreen()) return w.minimize()
+  w.once('leave-full-screen', () => w.minimize())
+  w.setFullScreen(false)
+}
+
+/**
+ * Back to the launcher after a game. Windows' focus-stealing prevention ignores focus() from a background
+ * app; briefly going always-on-top is the usual way through.
+ */
+function bringToFront(w: BrowserWindow, fullscreen: boolean): void {
+  if (w.isMinimized()) w.restore()
+  w.show()
+  w.setAlwaysOnTop(true, 'screen-saver')
+  w.moveTop()
+  w.focus()
+  w.webContents.focus()
+  if (fullscreen && !w.isFullScreen()) w.setFullScreen(true)
+  setTimeout(() => {
+    if (!w.isDestroyed()) w.setAlwaysOnTop(false)
+  }, 500)
+}
+
 function createWindow(fullscreen: boolean): void {
   win = new BrowserWindow({
     width: 1600,
@@ -75,7 +102,7 @@ app.whenReady().then(async () => {
     onStart(game, startedAt) {
       sessions.set(game.id, repo.startSession(game.id, startedAt))
       win?.webContents.send('game:started', game.id)
-      win?.minimize()
+      if (win) getOutOfTheWay(win)
     },
     onEnd(game, startedAt, endedAt) {
       const seconds = Math.round((endedAt - startedAt) / 1000)
@@ -83,10 +110,7 @@ app.whenReady().then(async () => {
       sessions.delete(game.id)
       if (sessionId) repo.endSession(sessionId, game.id, endedAt, seconds)
       if (win) {
-        win.restore()
-        // On Windows, minimize → restore drops fullscreen.
-        if (settings.fullscreen && !win.isFullScreen()) win.setFullScreen(true)
-        win.focus()
+        bringToFront(win, settings.fullscreen)
         win.webContents.send('game:ended', { gameId: game.id, seconds })
       }
     }

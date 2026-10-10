@@ -45,8 +45,8 @@ export function StoreDetail({ game, telegramPeer, onAdd, onShowInLibrary, onClos
 
   useInput((a) => {
     if (a === 'back') return onClose()
-    if (a === 'left' || a === 'up') setSel((s) => Math.max(0, s - 1))
-    if (a === 'right' || a === 'down') setSel((s) => Math.min(items.length - 1, s + 1))
+    if (a === 'left') setSel((s) => Math.max(0, s - 1))
+    if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') items[sel].run()
   }, !tgOpen)
 

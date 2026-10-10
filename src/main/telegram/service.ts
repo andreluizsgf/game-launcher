@@ -187,7 +187,7 @@ export class TelegramService {
     })
     const openedWith = info.torrent ? await this.openTorrent(path) : 'folder'
     if (openedWith === 'folder') shell.showItemInFolder(path)
-    this.events.progress({ msgId, ratio: 1, openedWith })
+    this.events.progress({ msgId, ratio: 1, openedWith, savePath: this.settings.gamesRoot })
     return path
   }
 

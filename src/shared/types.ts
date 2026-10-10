@@ -130,6 +130,8 @@ export interface TgDownloadProgress {
   ratio: number
   /** Set when done: where the torrent went. */
   openedWith?: 'qbittorrent' | 'default' | 'folder'
+  /** Folder qBittorrent was told to save into; null = qBittorrent's own default (no games folder set). */
+  savePath?: string | null
   /** Automatic download failed. */
   error?: string
 }

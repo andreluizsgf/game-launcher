@@ -51,8 +51,8 @@ export function GameDetail({ game, running, gamesRoot, telegramPeer, onLaunch, o
 
   useInput((a) => {
     if (a === 'back' || a === 'details') return onClose()
-    if (a === 'up' || a === 'left') setSel((s) => Math.max(0, s - 1))
-    if (a === 'down' || a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
+    if (a === 'left') setSel((s) => Math.max(0, s - 1))
+    if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') run(items[sel])
   }, !tgOpen)
 
