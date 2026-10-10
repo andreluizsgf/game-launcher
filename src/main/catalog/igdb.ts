@@ -1,0 +1,99 @@
+const TOKEN_URL = 'https://id.twitch.tv/oauth2/token'
+const API = 'https://api.igdb.com/v4'
+const PC_WINDOWS = 6
+
+export interface IgdbCredentials {
+  clientId: string
+  clientSecret: string
+}
+
+export interface IgdbGame {
+  id: number
+  name: string
+  first_release_date?: number
+  summary?: string
+  genres?: { name: string }[]
+  cover?: { image_id: string }
+  artworks?: { image_id: string }[]
+  screenshots?: { image_id: string }[]
+  total_rating?: number
+  total_rating_count?: number
+  hypes?: number
+}
+
+export interface PopularityPrimitive {
+  game_id: number
+  value: number
+}
+
+export class MissingCredentialsError extends Error {
+  constructor() {
+    super('Configure o Client ID e o Secret do IGDB nas Configurações')
+  }
+}
+
+export const imageUrl = (imageId: string, size: 'cover_big' | 'cover_small' | '1080p' | 'screenshot_big') =>
+  `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`
+
+export const FIELDS =
+  'fields name,first_release_date,summary,genres.name,cover.image_id,artworks.image_id,screenshots.image_id,total_rating,total_rating_count,hypes;'
+export { PC_WINDOWS }
+
+/** Apicalypse body for a PC game search. Exported for tests. */
+export function searchQuery(text: string, limit = 24): string {
+  const q = text.replace(/["\\]/g, ' ').trim()
+  return `search "${q}"; ${FIELDS} where platforms = (${PC_WINDOWS}) & version_parent = null; limit ${limit};`
+}
+
+export class IgdbClient {
+  private token: { value: string; expiresAt: number } | null = null
+  private tokenFor = ''
+
+  constructor(private getCredentials: () => IgdbCredentials | null) {}
+
+  private async auth(): Promise<{ headers: Record<string, string> }> {
+    const creds = this.getCredentials()
+    if (!creds) throw new MissingCredentialsError()
+    const key = `${creds.clientId}:${creds.clientSecret}`
+    if (!this.token || this.tokenFor !== key || Date.now() > this.token.expiresAt) {
+      const url = `${TOKEN_URL}?${new URLSearchParams({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        grant_type: 'client_credentials'
+      })}`
+      const res = await fetch(url, { method: 'POST' })
+      if (!res.ok) throw new Error(`Falha ao autenticar no Twitch/IGDB (${res.status}). Confira Client ID e Secret.`)
+      const body = (await res.json()) as { access_token: string; expires_in: number }
+      this.token = { value: body.access_token, expiresAt: Date.now() + (body.expires_in - 300) * 1000 }
+      this.tokenFor = key
+    }
+    return {
+      headers: {
+        'Client-ID': creds.clientId,
+        Authorization: `Bearer ${this.token.value}`,
+        Accept: 'application/json',
+        'Content-Type': 'text/plain'
+      }
+    }
+  }
+
+  async query<T>(endpoint: string, body: string): Promise<T> {
+    const { headers } = await this.auth()
+    const res = await fetch(`${API}/${endpoint}`, { method: 'POST', headers, body })
+    if (res.status === 401) {
+      this.token = null
+      throw new Error('Token IGDB expirado, tente de novo')
+    }
+    if (!res.ok) throw new Error(`IGDB respondeu ${res.status}`)
+    return (await res.json()) as T
+  }
+
+  search(text: string): Promise<IgdbGame[]> {
+    return this.query<IgdbGame[]>('games', searchQuery(text))
+  }
+
+  async get(id: number): Promise<IgdbGame | null> {
+    const rows = await this.query<IgdbGame[]>('games', `${FIELDS} where id = ${Math.trunc(id)};`)
+    return rows[0] ?? null
+  }
+}
