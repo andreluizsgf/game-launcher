@@ -11,6 +11,7 @@ import { startMouseTracking } from './input/mode'
 import { activeDownloads, groupShelves, SHELF_LABEL, SHELF_ORDER, stepShelf, type Shelf } from './library/shelves'
 import { GameDetail } from './screens/GameDetail'
 import { Home } from './screens/Home'
+import { QuickMenu } from './screens/QuickMenu'
 import { Search, type SearchMode } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -39,6 +40,11 @@ export function App() {
   /** Game to focus once the list/shelves update (after reloads, "Ver na biblioteca"…). */
   const [focusTarget, setFocusTarget] = useState<number | null>(null)
   const [storage, setStorage] = useState<StorageInfo | null>(null)
+  /** In-game quick menu open, and when the current session started. */
+  const [quickMenu, setQuickMenu] = useState(false)
+  const [sessionStart, setSessionStart] = useState(0)
+  const runningRef = useRef<number | null>(null)
+  runningRef.current = runningId
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const notify = useCallback((msg: string) => {
@@ -94,11 +100,21 @@ export function App() {
 
   useEffect(() => {
     let prev = false
-    const stopPad = startGamepadLoop((s) => {
-      setPad(s)
-      if (s.connected !== prev) notify(s.connected ? 'Controle conectado' : 'Controle desconectado')
-      prev = s.connected
-    })
+    const stopPad = startGamepadLoop(
+      (s) => {
+        setPad(s)
+        if (s.connected !== prev) notify(s.connected ? 'Controle conectado' : 'Controle desconectado')
+        prev = s.connected
+      },
+      // PS button: quick menu during a game, otherwise back to the games home (like the PS5).
+      () => {
+        if (runningRef.current != null) return void window.api.overlayToggle()
+        if (!document.hasFocus()) return
+        setOverlay({ kind: 'none' })
+        setTab('games')
+      }
+    )
+    const offOverlay = window.api.onOverlay(setQuickMenu)
     const stopHid = startHidPads()
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
@@ -108,9 +124,13 @@ export function App() {
       if (msg) notify(msg)
       reload()
     })
-    const offStart = window.api.onGameStarted((id) => setRunningId(id))
+    const offStart = window.api.onGameStarted((id) => {
+      setRunningId(id)
+      setSessionStart(Date.now())
+    })
     const offEnd = window.api.onGameEnded(({ gameId, seconds }) => {
       setRunningId(null)
+      setQuickMenu(false)
       notify(`Sessão encerrada · ${formatPlaytime(seconds)}`)
       reload(gameId)
     })
@@ -123,6 +143,7 @@ export function App() {
       offEnd()
       offDownloads()
       offLibrary()
+      offOverlay()
     }
   }, [notify, reload])
 
@@ -264,6 +285,17 @@ export function App() {
           storage={storage}
           notify={notify}
           onClose={() => setOverlay({ kind: 'none' })}
+        />
+      )}
+      {quickMenu && runningId != null && games.find((g) => g.id === runningId) && (
+        <QuickMenu
+          game={games.find((g) => g.id === runningId)!}
+          startedAt={sessionStart}
+          onResume={() => window.api.overlayHide()}
+          onQuit={async () => {
+            const res = await window.api.stopGame(runningId)
+            if (!res.ok) notify(res.error)
+          }}
         />
       )}
       <Toast message={toast} />

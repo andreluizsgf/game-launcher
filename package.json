@@ -1,6 +1,6 @@
 {
   "name": "game-launcher",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Console-style game launcher for Windows",
   "main": "./out/main/index.js",
   "author": "andre.filho",

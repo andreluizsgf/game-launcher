@@ -66,10 +66,29 @@ function pressedActions(pad: Pad): Set<Action> {
   return out
 }
 
-export function startGamepadLoop(onStatus: StatusListener): () => void {
+const GUIDE = 16 // PS button in the standard mapping
+/** Background polling rate: requestAnimationFrame stops while the window is minimized. */
+const BACKGROUND_POLL_MS = 50
+
+/**
+ * PS button on any Sony pad. HID reports keep arriving while the launcher is in the background,
+ * which is what lets the button open the in-game quick menu.
+ */
+function guidePressed(pads: Pad[]): boolean {
+  return pads.some((p) => p.buttons[GUIDE]) || hidPads().some((h) => h.state.buttons[GUIDE])
+}
+
+export function startGamepadLoop(onStatus: StatusListener, onGuide: () => void): () => void {
   const held = new Map<Action, number>() // action → next fire timestamp
   let raf = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
   let lastStatus = ''
+  let guideHeld = false
+
+  const schedule = () => {
+    if (document.hidden) timer = setTimeout(() => loop(performance.now()), BACKGROUND_POLL_MS)
+    else raf = requestAnimationFrame(loop)
+  }
 
   const loop = (now: number) => {
     const pads = activePads()
@@ -80,8 +99,13 @@ export function startGamepadLoop(onStatus: StatusListener): () => void {
       onStatus(status)
     }
 
+    const guide = guidePressed(pads)
+    if (guide && !guideHeld) onGuide()
+    guideHeld = guide
+
+    // While a game has focus, the launcher's screens must not react to the pad.
     const pressed = new Set<Action>()
-    for (const p of pads) pressedActions(p).forEach((a) => pressed.add(a))
+    if (document.hasFocus()) for (const p of pads) pressedActions(p).forEach((a) => pressed.add(a))
 
     for (const a of pressed) {
       const next = held.get(a)
@@ -96,8 +120,11 @@ export function startGamepadLoop(onStatus: StatusListener): () => void {
     }
     for (const a of [...held.keys()]) if (!pressed.has(a)) held.delete(a)
 
-    raf = requestAnimationFrame(loop)
+    schedule()
   }
-  raf = requestAnimationFrame(loop)
-  return () => cancelAnimationFrame(raf)
+  schedule()
+  return () => {
+    cancelAnimationFrame(raf)
+    clearTimeout(timer)
+  }
 }

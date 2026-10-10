@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, protocol } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, net, protocol } from 'electron'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { openDb } from './db/schema'
@@ -14,6 +14,9 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 let win: BrowserWindow | null = null
+
+/** Keyboard way into the in-game quick menu (registered only while a game runs). */
+const OVERLAY_SHORTCUT = 'CommandOrControl+Shift+G'
 
 const SONY_VENDOR_ID = 0x054c
 
@@ -103,12 +106,15 @@ app.whenReady().then(async () => {
       sessions.set(game.id, repo.startSession(game.id, startedAt))
       win?.webContents.send('game:started', game.id)
       if (win) getOutOfTheWay(win)
+      globalShortcut.register(OVERLAY_SHORTCUT, toggleOverlay)
     },
     onEnd(game, startedAt, endedAt) {
       const seconds = Math.round((endedAt - startedAt) / 1000)
       const sessionId = sessions.get(game.id)
       sessions.delete(game.id)
       if (sessionId) repo.endSession(sessionId, game.id, endedAt, seconds)
+      globalShortcut.unregister(OVERLAY_SHORTCUT)
+      overlayOpen = false
       if (win) {
         bringToFront(win, settings.fullscreen)
         win.webContents.send('game:ended', { gameId: game.id, seconds })
@@ -116,10 +122,43 @@ app.whenReady().then(async () => {
     }
   })
 
+  /**
+   * In-game quick menu (PS button / Ctrl+Shift+G): the launcher comes in front of the game with
+   * "back to game" and "close game". Not drawn inside the game — exclusive-fullscreen games minimize.
+   */
+  let overlayOpen = false
+  const showOverlay = () => {
+    if (!win || runner.current() == null) return
+    overlayOpen = true
+    bringToFront(win, settings.fullscreen)
+    win.webContents.send('overlay:state', true)
+  }
+  const hideOverlay = () => {
+    if (!win || !overlayOpen) return
+    overlayOpen = false
+    win.webContents.send('overlay:state', false)
+    getOutOfTheWay(win)
+  }
+  function toggleOverlay(): void {
+    if (overlayOpen && win?.isFocused()) hideOverlay()
+    else showOverlay()
+  }
+  ipcMain.handle('overlay:toggle', () => toggleOverlay())
+  ipcMain.handle('overlay:hide', () => hideOverlay())
+  ipcMain.handle('game:stop', async (_e, gameId: number) => {
+    try {
+      await runner.stop(gameId)
+      return { ok: true, value: null }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   registerIpc({ repo, runner, settings, getWindow: () => win })
   createWindow(settings.fullscreen)
 
   app.on('before-quit', () => {
+    globalShortcut.unregisterAll()
     runner.stopAll()
     db.close()
   })

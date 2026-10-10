@@ -402,3 +402,10 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .storage-bar span { display: block; height: 100%; background: var(--fg-dim); }
 .storage.low { color: #ff8a80; }
 .storage.low .storage-bar span { background: #ff8a80; }
+
+/* In-game quick menu */
+.quick-menu-overlay { z-index: 20; background: rgba(5, 7, 13, 0.9); }
+.quick-menu { display: flex; gap: 48px; align-items: center; }
+.quick-menu-art { width: 240px; height: 240px; border-radius: 18px; object-fit: cover; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.quick-menu h1 { font-size: 48px; font-weight: 300; margin: 6px 0 28px; }
+.menu-item.danger.focused { background: #ff6b5e; color: #0b0d12; }

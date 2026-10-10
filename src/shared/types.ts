@@ -224,6 +224,12 @@ export interface LauncherApi {
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
   telegramCommand(command: string): Promise<Result<null>>
   readClipboard(): Promise<string>
+  /** In-game quick menu: bring the launcher over the running game, or send it back. */
+  overlayToggle(): Promise<void>
+  overlayHide(): Promise<void>
+  onOverlay(cb: (open: boolean) => void): () => void
+  /** Force-closes the running game. */
+  stopGame(gameId: number): Promise<Result<null>>
   storage(): Promise<StorageInfo | null>
   setQbWebPassword(password: string): Promise<Settings>
   getDownloads(): Promise<DownloadsStatus>
