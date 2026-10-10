@@ -1,4 +1,5 @@
 import { inputBus, type Action } from './actions'
+import { hidPads } from './hidPads'
 import { setInputMode } from './mode'
 
 // Standard Gamepad API mapping (DualSense via USB/BT in Chromium).
@@ -30,20 +31,32 @@ export interface PadStatus {
 
 type StatusListener = (s: PadStatus) => void
 
+/** Gamepad API pad or a Sony pad read over WebHID, in the standard mapping. */
+interface Pad {
+  id: string
+  buttons: boolean[]
+  axes: readonly number[]
+}
+
 /**
  * Pads to read. If any Sony pad is connected, ignore the rest — in Marco 2 the input
- * helper exposes a virtual Xbox 360 pad that must not drive the launcher twice.
+ * helper (and Steam Input) exposes a virtual Xbox 360 pad that must not drive the launcher twice.
+ * Sony pads the Gamepad API misses (DualSense over Bluetooth on Windows) come from WebHID.
  */
-function activePads(): Gamepad[] {
-  const pads = navigator.getGamepads().filter((p): p is Gamepad => !!p && p.connected)
-  const sony = pads.filter((p) => SONY_VENDOR.test(p.id))
+function activePads(): Pad[] {
+  const pads: Pad[] = navigator
+    .getGamepads()
+    .filter((p): p is Gamepad => !!p && p.connected)
+    .map((p) => ({ id: p.id, buttons: p.buttons.map((b) => b.pressed), axes: p.axes }))
+  let sony = pads.filter((p) => SONY_VENDOR.test(p.id))
+  if (!sony.length) sony = hidPads().map((h) => ({ id: h.id, ...h.state }))
   return sony.length ? sony : pads
 }
 
-function pressedActions(pad: Gamepad): Set<Action> {
+function pressedActions(pad: Pad): Set<Action> {
   const out = new Set<Action>()
   for (const [idx, action] of Object.entries(BUTTONS)) {
-    if (pad.buttons[Number(idx)]?.pressed) out.add(action)
+    if (pad.buttons[Number(idx)]) out.add(action)
   }
   const [x = 0, y = 0] = pad.axes
   if (x < -DEADZONE) out.add('left')

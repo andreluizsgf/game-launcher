@@ -5,6 +5,7 @@ import { Toast } from './components/Toast'
 import { TopBar, type Tab } from './components/TopBar'
 import { formatPlaytime, mediaUrl } from './format'
 import { startGamepadLoop, type PadStatus } from './input/gamepad'
+import { startHidPads } from './input/hidPads'
 import { startKeyboard } from './input/keyboard'
 import { startMouseTracking } from './input/mode'
 import { GameDetail } from './screens/GameDetail'
@@ -63,6 +64,7 @@ export function App() {
       if (s.connected !== prev) notify(s.connected ? 'Controle conectado' : 'Controle desconectado')
       prev = s.connected
     })
+    const stopHid = startHidPads()
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
     const offStart = window.api.onGameStarted((id) => setRunningId(id))
@@ -73,6 +75,7 @@ export function App() {
     })
     return () => {
       stopPad()
+      stopHid()
       stopKb()
       stopMouse()
       offStart()

@@ -15,6 +15,22 @@ protocol.registerSchemesAsPrivileged([
 
 let win: BrowserWindow | null = null
 
+const SONY_VENDOR_ID = 0x054c
+
+/**
+ * Lets the renderer read Sony pads over WebHID without a device picker. Chromium's Gamepad API
+ * often misses the DualSense over Bluetooth on Windows; HID sees it (that's how Steam reads it).
+ */
+function grantSonyHid(w: BrowserWindow): void {
+  const ses = w.webContents.session
+  ses.setPermissionCheckHandler(() => true)
+  ses.setDevicePermissionHandler((d) => d.deviceType === 'hid' && d.device.vendorId === SONY_VENDOR_ID)
+  ses.on('select-hid-device', (event, details, callback) => {
+    event.preventDefault()
+    callback(details.deviceList.find((d) => d.vendorId === SONY_VENDOR_ID)?.deviceId)
+  })
+}
+
 function createWindow(fullscreen: boolean): void {
   win = new BrowserWindow({
     width: 1600,
@@ -31,6 +47,7 @@ function createWindow(fullscreen: boolean): void {
       backgroundThrottling: false
     }
   })
+  grantSonyHid(win)
   win.once('ready-to-show', () => win?.show())
   win.on('closed', () => (win = null))
   if (process.env.GL_SNAPSHOT) runDevSnapshot(win, process.env.GL_SNAPSHOT)
