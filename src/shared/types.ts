@@ -34,6 +34,8 @@ export interface Settings {
   /** Message sent to the peer; `{title}` is replaced by the game title. */
   telegramTemplate: string
   telegramLoggedIn: boolean
+  /** qBittorrent executable in use (override or auto-detected); null = not found. */
+  qbittorrentPath: string | null
 }
 
 export type SettingsPatch = Partial<
@@ -126,6 +128,10 @@ export interface TgDownloadProgress {
   msgId: number
   /** 0–1; 1 = done. */
   ratio: number
+  /** Set when done: where the torrent went. */
+  openedWith?: 'qbittorrent' | 'default' | 'folder'
+  /** Automatic download failed. */
+  error?: string
 }
 
 export type TgLoginStep = 'code' | 'password' | 'done'
@@ -141,6 +147,8 @@ export interface LauncherApi {
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>
   pickGamesRoot(): Promise<string | null>
+  /** File dialog to pick the qBittorrent app/executable. */
+  pickQbittorrent(): Promise<Settings>
   catalogSearch(query: string): Promise<Result<CatalogHit[]>>
   /** Adds a catalog game; merges into an installed game with the same title when there is one. */
   catalogAdd(igdbId: number): Promise<Result<Game>>
@@ -155,8 +163,9 @@ export interface LauncherApi {
   telegramLogout(): Promise<Settings>
   /** Sends the game title to the peer, unless a recent thread for it exists (`force` resends). */
   telegramQuery(title: string, force?: boolean): Promise<Result<TgThread>>
-  telegramOpenLink(url: string): Promise<Result<null>>
-  /** Downloads a message's file; .torrent files are opened in the default torrent client. */
+  /** http(s) opens in the browser; magnet links go to qBittorrent like .torrent files. */
+  telegramOpenLink(url: string): Promise<Result<TgDownloadProgress['openedWith']>>
+  /** Downloads a message's file; .torrent files go to qBittorrent (saving into the games folder) or the default client. */
   telegramDownload(msgId: number): Promise<Result<string>>
   telegramPress(msgId: number, row: number, col: number): Promise<Result<null>>
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */

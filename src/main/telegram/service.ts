@@ -9,6 +9,7 @@ import { StringSession } from 'telegram/sessions'
 import { getPeerId } from 'telegram/Utils'
 import type { TgDownloadProgress, TgLoginStep, TgMessage, TgThread } from '@shared/types'
 import { decrypt, encrypt, saveSettings, type StoredSettings } from '../settings'
+import { addToQbittorrent, findQbittorrent } from './qbittorrent'
 import {
   describeFile,
   extractButtons,
@@ -32,6 +33,8 @@ interface Thread {
   sentAt: number
   /** Last time anything was sent for this thread (query or command); replies are accepted after it. */
   lastSentAt: number
+  /** A /download was requested: the next .torrent that arrives is downloaded and opened automatically. */
+  awaitingTorrent: boolean
   raw: Map<number, Api.Message>
 }
 
@@ -114,6 +117,12 @@ export class TelegramService {
     if (getPeerId(msg.peerId) !== this.peerId) return
     t.raw.set(msg.id, msg)
     this.events.thread(this.view(t))
+    if (t.awaitingTorrent && msg.document && describeFile(msg.file?.name, msg.file?.mimeType, null).torrent) {
+      t.awaitingTorrent = false
+      this.download(msg.id).catch((err) =>
+        this.events.progress({ msgId: msg.id, ratio: 0, error: err instanceof Error ? err.message : String(err) })
+      )
+    }
   }
 
   private view(t: Thread): TgThread {
@@ -130,7 +139,13 @@ export class TelegramService {
     }
     const c = await this.connected()
     const peer = await this.peer(c)
-    const t: Thread = { query: text, sentAt: Date.now(), lastSentAt: Date.now(), raw: new Map() }
+    const t: Thread = {
+      query: text,
+      sentAt: Date.now(),
+      lastSentAt: Date.now(),
+      awaitingTorrent: false,
+      raw: new Map()
+    }
     this.threads.set(text, t)
     this.active = t
     await c.sendMessage(peer, { message: text })
@@ -145,9 +160,14 @@ export class TelegramService {
     throw new Error('Mensagem não encontrada — busque de novo')
   }
 
-  async openLink(url: string): Promise<void> {
+  async openLink(url: string): Promise<'qbittorrent' | 'default'> {
     if (!isOpenable(url)) throw new Error('Link não suportado')
+    if (/^magnet:/i.test(url)) {
+      const via = await this.openTorrent(url)
+      return via === 'qbittorrent' ? via : 'default'
+    }
     await shell.openExternal(url)
+    return 'default'
   }
 
   async download(msgId: number): Promise<string> {
@@ -165,12 +185,28 @@ export class TelegramService {
       progressCallback: (done) =>
         total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
     })
-    this.events.progress({ msgId, ratio: 1 })
-    if (info.torrent) {
-      const err = await shell.openPath(path)
-      if (err) shell.showItemInFolder(path)
-    } else shell.showItemInFolder(path)
+    const openedWith = info.torrent ? await this.openTorrent(path) : 'folder'
+    if (openedWith === 'folder') shell.showItemInFolder(path)
+    this.events.progress({ msgId, ratio: 1, openedWith })
     return path
+  }
+
+  /** qBittorrent saving into the games folder when installed; the OS default handler otherwise. */
+  private async openTorrent(torrent: string): Promise<'qbittorrent' | 'default' | 'folder'> {
+    const qb = findQbittorrent(this.settings.qbittorrentPath)
+    if (qb) {
+      try {
+        await addToQbittorrent(qb, torrent, this.settings.gamesRoot)
+        return 'qbittorrent'
+      } catch {
+        // Fall through to the default handler.
+      }
+    }
+    if (torrent.startsWith('magnet:')) {
+      await shell.openExternal(torrent)
+      return 'default'
+    }
+    return (await shell.openPath(torrent)) ? 'folder' : 'default'
   }
 
   async command(command: string): Promise<void> {
@@ -179,6 +215,7 @@ export class TelegramService {
     if (!isBotCommand(command)) throw new Error('Comando inválido')
     const c = await this.connected()
     t.lastSentAt = Date.now()
+    if (command.startsWith('/download')) t.awaitingTorrent = true
     await c.sendMessage(await this.peer(c), { message: command })
   }
 

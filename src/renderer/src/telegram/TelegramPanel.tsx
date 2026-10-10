@@ -51,6 +51,12 @@ const ICON: Record<string, string> = {
   command: '⬇'
 }
 
+const OPENED = {
+  qbittorrent: 'Enviado ao qBittorrent — baixando na pasta de jogos',
+  default: 'Aberto no cliente de torrent padrão',
+  folder: 'Arquivo salvo em Downloads/Game Launcher'
+}
+
 /** Replies from the Telegram peer for one game, with their links, files and bot buttons. */
 export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) {
   const messages = state.status === 'ready' ? state.thread.messages : []
@@ -69,7 +75,18 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
   const listRef = useRef<HTMLDivElement>(null)
   const focused = actions[Math.min(sel, actions.length - 1)]
 
-  useEffect(() => window.api.onTelegramProgress((p) => setProgress((s) => ({ ...s, [p.msgId]: p.ratio }))), [])
+  useEffect(
+    () =>
+      window.api.onTelegramProgress((p) => {
+        if (p.error) {
+          setProgress(({ [p.msgId]: _, ...rest }) => rest)
+          return setNote(p.error)
+        }
+        setProgress((s) => ({ ...s, [p.msgId]: p.ratio }))
+        if (p.openedWith) setNote(OPENED[p.openedWith])
+      }),
+    []
+  )
 
   useEffect(() => {
     listRef.current?.querySelector('.tg-action.focused')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -80,20 +97,22 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
     setNote(null)
     if (a.kind === 'link') {
       const res = await window.api.telegramOpenLink(a.url)
-      setNote(res.ok ? (a.magnet ? 'Magnet enviado ao cliente de torrent' : 'Aberto no navegador') : res.error)
+      if (!res.ok) setNote(res.error)
+      else setNote(res.value === 'qbittorrent' ? OPENED.qbittorrent : a.magnet ? OPENED.default : 'Aberto no navegador')
     } else if (a.kind === 'file') {
       if (progress[a.msgId] !== undefined && progress[a.msgId] < 1) return
       setProgress((s) => ({ ...s, [a.msgId]: 0 }))
+      // Success note comes with the final progress event (also used by automatic downloads).
       const res = await window.api.telegramDownload(a.msgId)
       if (!res.ok) {
         setProgress(({ [a.msgId]: _, ...rest }) => rest)
         setNote(res.error)
-      } else setNote(a.torrent ? 'Torrent aberto no cliente padrão' : `Salvo em ${res.value}`)
+      }
     } else if (a.kind === 'command') {
       const res = await window.api.telegramCommand(a.command)
       if (!res.ok) return setNote(res.error)
       setRequested((s) => new Set(s).add(a.command))
-      setNote('Pedido enviado — o torrent aparece aqui quando o bot responder')
+      setNote('Pedido enviado — o torrent vai direto pro qBittorrent quando o bot responder')
     } else {
       const res = await window.api.telegramPress(a.msgId, a.row, a.col)
       if (!res.ok) setNote(res.error)

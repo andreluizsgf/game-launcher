@@ -16,6 +16,7 @@ const api: LauncherApi = {
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   setIgdbSecret: (secret) => ipcRenderer.invoke('settings:setIgdbSecret', secret),
   pickGamesRoot: () => ipcRenderer.invoke('settings:pickRoot'),
+  pickQbittorrent: () => ipcRenderer.invoke('settings:pickQbittorrent'),
   catalogSearch: (q) => ipcRenderer.invoke('catalog:search', q),
   catalogAdd: (id) => ipcRenderer.invoke('catalog:add', id),
   catalogLink: (gameId, igdbId) => ipcRenderer.invoke('catalog:link', gameId, igdbId),

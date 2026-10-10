@@ -17,6 +17,7 @@ import {
   setIgdbSecret,
   type StoredSettings
 } from './settings'
+import { resolveQbittorrent } from './telegram/qbittorrent'
 import { TelegramService } from './telegram/service'
 
 interface Deps {
@@ -185,10 +186,9 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       return fail(err)
     }
   })
-  ipcMain.handle('telegram:openLink', async (_e, url: string): Promise<Result<null>> => {
+  ipcMain.handle('telegram:openLink', async (_e, url: string) => {
     try {
-      await telegram.openLink(url)
-      return ok(null)
+      return ok(await telegram.openLink(url))
     } catch (err) {
       return fail(err)
     }
@@ -215,6 +215,21 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     } catch (err) {
       return fail(err)
     }
+  })
+
+  ipcMain.handle('settings:pickQbittorrent', async () => {
+    const win = getWindow()
+    const opts = {
+      properties: ['openFile' as const],
+      title: 'qBittorrent',
+      defaultPath: process.platform === 'darwin' ? '/Applications' : undefined
+    }
+    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (!res.canceled && res.filePaths[0]) {
+      settings.qbittorrentPath = resolveQbittorrent(res.filePaths[0])
+      saveSettings(settings)
+    }
+    return pub()
   })
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())

@@ -2,6 +2,7 @@ import { app, safeStorage } from 'electron'
 import { readFileSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import type { Settings } from '@shared/types'
+import { findQbittorrent } from './telegram/qbittorrent'
 
 /** On-disk shape. Secrets (IGDB secret, Telegram hash/session) are encrypted with the OS keychain (safeStorage). */
 export interface StoredSettings {
@@ -14,6 +15,8 @@ export interface StoredSettings {
   telegramPeer: string | null
   telegramTemplate: string
   telegramSessionEnc: string | null
+  /** Overrides qBittorrent auto-detection. */
+  qbittorrentPath: string | null
 }
 
 const DEFAULTS: StoredSettings = {
@@ -25,7 +28,8 @@ const DEFAULTS: StoredSettings = {
   telegramApiHashEnc: null,
   telegramPeer: null,
   telegramTemplate: '{title}',
-  telegramSessionEnc: null
+  telegramSessionEnc: null,
+  qbittorrentPath: null
 }
 const file = () => join(app.getPath('userData'), 'settings.json')
 
@@ -55,7 +59,8 @@ export function publicSettings(s: StoredSettings): Settings {
     hasTelegramApiHash: !!s.telegramApiHashEnc,
     telegramPeer: s.telegramPeer,
     telegramTemplate: s.telegramTemplate,
-    telegramLoggedIn: !!s.telegramSessionEnc
+    telegramLoggedIn: !!s.telegramSessionEnc,
+    qbittorrentPath: findQbittorrent(s.qbittorrentPath)
   }
 }
 

@@ -73,6 +73,11 @@ export function Settings(props: Props) {
     { label: 'Telegram API Hash', value: settings.hasTelegramApiHash ? '••••••••' : 'Não definido', run: () => setEditing('tgApiHash') },
     { label: 'Telegram canal / bot', value: settings.telegramPeer ? `@${settings.telegramPeer}` : 'Não definido', run: () => setEditing('tgPeer') },
     { label: 'Telegram mensagem', value: settings.telegramTemplate, run: () => setEditing('tgTemplate') },
+    {
+      label: 'qBittorrent',
+      value: settings.qbittorrentPath ?? 'Não encontrado',
+      run: async () => onSettings(await window.api.pickQbittorrent())
+    },
     settings.telegramLoggedIn
       ? {
           label: 'Telegram conta',
@@ -120,7 +125,8 @@ export function Settings(props: Props) {
         <p className="settings-note">
           Telegram: crie um app em my.telegram.org (API development tools) para obter API ID e Hash, defina o canal ou
           bot e entre com sua conta. Ao abrir o detalhe de um jogo, o nome dele é enviado e as respostas aparecem em
-          “Telegram”. Hash e sessão ficam criptografados.
+          “Telegram”. Hash e sessão ficam criptografados. Torrents vão pro qBittorrent (detectado automaticamente)
+          baixando direto na pasta de jogos.
         </p>
       </div>
       {editing && editing !== 'clientId' && editing !== 'secret' && (
