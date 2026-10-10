@@ -1,7 +1,8 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { statfs } from 'fs/promises'
 import { basename, dirname, join, parse, resolve } from 'path'
-import type { StorageInfo } from '@shared/types'
+import type { GameAchievements, StorageInfo } from '@shared/types'
+import { AwnReader, awnDataDir } from './achievements/awn'
 import type { CatalogHit, Game, Result, Settings, SettingsPatch, StoreSection, TgLoginStep, TgThread } from '@shared/types'
 import { cacheArt } from './catalog/art'
 import { IgdbClient, imageUrl, type IgdbGame } from './catalog/igdb'
@@ -324,6 +325,13 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     } catch {
       return null
     }
+  })
+
+  // GL_AWN_DIR: dev override pointing at a fake AWN data folder.
+  const awn = new AwnReader(() => process.env.GL_AWN_DIR || awnDataDir(app.getPath('appData')))
+  ipcMain.handle('achievements:get', (_e, gameId: number): GameAchievements | null => {
+    const game = repo.get(gameId)
+    return game ? awn.forGame(game) : null
   })
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())

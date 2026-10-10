@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import type { DownloadInfo, Game } from '@shared/types'
+import { useEffect, useState } from 'react'
+import type { DownloadInfo, Game, GameAchievements } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
 import { formatDate, formatDownload, formatPlaytime } from '../format'
 import { useInput } from '../input/useInput'
+import { Achievements } from './Achievements'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThread'
 
@@ -27,7 +28,7 @@ interface Props {
 }
 
 type Item = {
-  id: 'play' | 'resume' | 'stop' | 'telegram' | 'identify' | 'uninstall' | 'remove' | 'back'
+  id: 'play' | 'resume' | 'stop' | 'achievements' | 'telegram' | 'identify' | 'uninstall' | 'remove' | 'back'
   label: string
   disabled?: boolean
   danger?: boolean
@@ -38,6 +39,11 @@ export function GameDetail(props: Props) {
   const { onIdentify, onRemove, onClose } = props
   // Destructive items need a second press.
   const [confirm, setConfirm] = useState<'stop' | 'uninstall' | null>(null)
+  const [achievements, setAchievements] = useState<GameAchievements | null>(null)
+  const [achOpen, setAchOpen] = useState(false)
+  useEffect(() => {
+    window.api.achievements(game.id).then(setAchievements)
+  }, [game.id])
   // A folder that's still downloading isn't playable yet.
   const installed = !!game.folder && !download
   const [tgOpen, setTgOpen] = useState(false)
@@ -61,6 +67,9 @@ export function GameDetail(props: Props) {
       : installed
         ? [{ id: 'play', label: 'Jogar', disabled: !game.exePath } as Item]
         : []),
+    ...(achievements
+      ? [{ id: 'achievements', label: `Conquistas · ${achievements.unlocked}/${achievements.total}` } as Item]
+      : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
     ...(game.folder && !running
@@ -93,6 +102,7 @@ export function GameDetail(props: Props) {
       else onUninstall(game)
     }
     else if (it.id === 'telegram') openTelegram()
+    else if (it.id === 'achievements') setAchOpen(true)
     else if (it.id === 'identify') onIdentify(game)
     else if (it.id === 'remove') onRemove(game)
     else onClose()
@@ -104,7 +114,7 @@ export function GameDetail(props: Props) {
     if (a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
     if (a === 'confirm') run(items[sel])
-  }, !tgOpen)
+  }, !tgOpen && !achOpen)
 
   return (
     <div className="overlay">
@@ -180,6 +190,9 @@ export function GameDetail(props: Props) {
           { button: '○', label: 'Voltar' }
         ]}
       />
+      {achOpen && achievements && (
+        <Achievements title={game.title} data={achievements} onClose={() => setAchOpen(false)} />
+      )}
       {tgOpen && (
         <TelegramPanel
           title={game.title}

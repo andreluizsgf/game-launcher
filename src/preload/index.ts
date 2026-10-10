@@ -43,6 +43,7 @@ const api: LauncherApi = {
   overlayHide: () => ipcRenderer.invoke('overlay:hide'),
   onOverlay: (cb) => on<boolean>('overlay:state', cb),
   stopGame: (gameId) => ipcRenderer.invoke('game:stop', gameId),
+  achievements: (gameId) => ipcRenderer.invoke('achievements:get', gameId),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   onGameEnded: (cb) => on<GameEndedEvent>('game:ended', cb),
   onGameStarted: (cb) => on<number>('game:started', cb)

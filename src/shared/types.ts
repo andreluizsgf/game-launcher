@@ -189,6 +189,29 @@ export interface StorageInfo {
   total: number
 }
 
+export interface Achievement {
+  id: string
+  name: string
+  description: string
+  /** Remote URL or local path; the gray version while locked. */
+  icon: string | null
+  hidden: boolean
+  unlocked: boolean
+  /** ms; null = locked or unknown. */
+  unlockedAt: number | null
+  /** % of players who have it (global rarity), when known. */
+  rarity: number | null
+  progress: { current: number; max: number } | null
+}
+
+export interface GameAchievements {
+  source: string
+  appid: string
+  total: number
+  unlocked: number
+  list: Achievement[]
+}
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface LauncherApi {
@@ -229,6 +252,8 @@ export interface LauncherApi {
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
   telegramCommand(command: string): Promise<Result<null>>
   readClipboard(): Promise<string>
+  /** Achievements for a library game, read from Achievement Watcher Next; null = none found. */
+  achievements(gameId: number): Promise<GameAchievements | null>
   /** In-game quick menu: bring the launcher over the running game, or send it back. */
   overlayToggle(): Promise<void>
   overlayHide(): Promise<void>
