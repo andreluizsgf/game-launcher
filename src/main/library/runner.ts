@@ -17,6 +17,26 @@ const POLL_MS = 5000
 const STARTUP_GRACE_MS = 20000
 /** Store launches may start Steam/Epic, sync saves or patch first. */
 const STORE_GRACE_MS = 120000
+/** Polls in a row without game processes before the session ends (covers launcher → game hand-offs). */
+const MISSES_TO_END = 2
+
+export interface Watch {
+  /** Game processes were seen at least once. */
+  seen: boolean
+  /** Consecutive polls without them since. */
+  misses: number
+}
+
+/**
+ * Session bookkeeping per poll. The grace period only covers the wait for the game to show up the
+ * first time; once it has run, it ends as soon as its processes are gone for MISSES_TO_END polls.
+ */
+export function nextWatch(w: Watch, alive: boolean, elapsedMs: number, graceMs: number): Watch | 'ended' {
+  if (alive) return { seen: true, misses: 0 }
+  if (!w.seen) return elapsedMs < graceMs ? w : 'ended'
+  const misses = w.misses + 1
+  return misses >= MISSES_TO_END ? 'ended' : { seen: true, misses }
+}
 
 interface Proc {
   pid: number
@@ -96,15 +116,15 @@ export class Runner {
     this.hooks.onStart(game, startedAt)
 
     const folder = folderKey(gameFolder)
+    const grace = game.launchUri ? STORE_GRACE_MS : STARTUP_GRACE_MS
+    let watch: Watch = { seen: false, misses: 0 }
     const tick = async (): Promise<void> => {
       const alive = (await listProcesses()).some(inFolder(folder))
       if (!this.games.has(game.id)) return // stopped while listing
-      const inGrace = Date.now() - startedAt < (game.launchUri ? STORE_GRACE_MS : STARTUP_GRACE_MS)
-      if (alive || inGrace) {
-        this.running.set(game.id, setTimeout(tick, POLL_MS))
-      } else {
-        await this.finish(game, startedAt)
-      }
+      const next = nextWatch(watch, alive, Date.now() - startedAt, grace)
+      if (next === 'ended') return this.finish(game, startedAt)
+      watch = next
+      this.running.set(game.id, setTimeout(tick, POLL_MS))
     }
     this.running.set(game.id, setTimeout(tick, POLL_MS))
   }
