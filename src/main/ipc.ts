@@ -27,6 +27,7 @@ import {
 } from './settings'
 import { resolveQbittorrent } from './telegram/qbittorrent'
 import { TelegramService } from './telegram/service'
+import { RELEASES_REPO, Updater } from './updater'
 
 interface Deps {
   repo: GamesRepo
@@ -333,6 +334,18 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     const game = repo.get(gameId)
     return game ? awn.forGame(game) : null
   })
+
+  const updater = new Updater((s) => send('update:state', s))
+  updater.start()
+  ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('update:get', () => updater.current())
+  ipcMain.handle('update:install', () => {
+    // Never yank the launcher from under a running game; it installs on quit anyway.
+    if (runner.current() == null) updater.install()
+  })
+  ipcMain.handle('update:openReleases', () =>
+    shell.openExternal(`https://github.com/${RELEASES_REPO.owner}/${RELEASES_REPO.repo}/releases/latest`)
+  )
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())
 

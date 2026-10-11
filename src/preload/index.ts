@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { DownloadsStatus, GameEndedEvent, LauncherApi, TgDownloadProgress, TgThread } from '@shared/types'
+import type {
+  DownloadsStatus,
+  GameEndedEvent,
+  LauncherApi,
+  TgDownloadProgress,
+  TgThread,
+  UpdateState
+} from '@shared/types'
 
 function on<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, payload: T) => cb(payload)
@@ -44,6 +51,11 @@ const api: LauncherApi = {
   onOverlay: (cb) => on<boolean>('overlay:state', cb),
   stopGame: (gameId) => ipcRenderer.invoke('game:stop', gameId),
   achievements: (gameId) => ipcRenderer.invoke('achievements:get', gameId),
+  appVersion: () => ipcRenderer.invoke('app:version'),
+  updateState: () => ipcRenderer.invoke('update:get'),
+  onUpdate: (cb) => on<UpdateState>('update:state', cb),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openReleases: () => ipcRenderer.invoke('update:openReleases'),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   onGameEnded: (cb) => on<GameEndedEvent>('game:ended', cb),
   onGameStarted: (cb) => on<number>('game:started', cb)

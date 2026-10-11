@@ -18,7 +18,16 @@ win:
     - portable
 portable:
   # Single .exe that runs without installing; settings live in AppData like the installed app.
-  artifactName: ${productName} Portable ${version}.${ext}
+  artifactName: Game-Launcher-Portable-${version}.${ext}
 nsis:
+  # No spaces: the name in latest.yml must match the uploaded asset.
+  artifactName: Game-Launcher-Setup-${version}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
+# Auto-update: installers are published to a public releases-only repo (the code repo is private).
+# electron-updater reads latest.yml from there.
+publish:
+  provider: github
+  owner: andreluizsgf
+  repo: game-launcher-releases
+  releaseType: release

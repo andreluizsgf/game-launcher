@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { DownloadsStatus, Result, Settings as S, StorageInfo, TgLoginStep } from '@shared/types'
+import type { DownloadsStatus, Result, Settings as S, StorageInfo, TgLoginStep, UpdateState } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { TextEntry } from '../components/TextEntry'
 import { formatBytes } from '../format'
@@ -16,6 +16,8 @@ interface Props {
   /** For the qBittorrent Web UI connection status. */
   downloads: DownloadsStatus
   storage: StorageInfo | null
+  version: string
+  update: UpdateState
   notify(msg: string): void
   onClose(): void
 }
@@ -49,7 +51,7 @@ const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean 
 
 export function Settings(props: Props) {
   const { settings, onPickRoot, onRescan, onToggleFullscreen, onSetIgdbClientId, onSetIgdbSecret, onSettings } = props
-  const { downloads, storage, notify, onClose } = props
+  const { downloads, storage, version, update, notify, onClose } = props
   const [editing, setEditing] = useState<Editing>(null)
   const tgReady = !!settings.telegramApiId && settings.hasTelegramApiHash
 
@@ -83,7 +85,17 @@ export function Settings(props: Props) {
     onSettings(await window.api.setSettings({ telegramTemplate: v }))
   }
 
+  const updateItem: { label: string; value: string; run(): void; disabled?: boolean } =
+    update.status === 'ready'
+      ? { label: 'Versão', value: `${version} · ${update.version} pronta — reiniciar agora`, run: () => window.api.installUpdate() }
+      : update.status === 'downloading'
+        ? { label: 'Versão', value: `${version} · baixando ${update.version} (${Math.round(update.percent * 100)}%)`, run: () => {} }
+        : update.status === 'portable'
+          ? { label: 'Versão', value: `${version} · ${update.version} disponível — baixar instalador`, run: () => window.api.openReleases() }
+          : { label: 'Versão', value: version ? `${version} · atualizada` : '—', run: () => {} }
+
   const items = [
+    updateItem,
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
     { label: 'Reescanear biblioteca', value: '', run: onRescan, disabled: !settings.gamesRoot },
     {

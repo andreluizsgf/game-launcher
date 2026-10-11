@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DownloadsStatus, Game, Settings as S, StorageInfo, StoreGame } from '@shared/types'
+import type { DownloadsStatus, Game, Settings as S, StorageInfo, StoreGame, UpdateState } from '@shared/types'
 import { Background, type BackdropArt } from './components/Background'
 import { Toast } from './components/Toast'
 import { TopBar, type Tab } from './components/TopBar'
@@ -39,6 +39,8 @@ export function App() {
   /** Game to focus once the list/shelves update (after reloads, "Ver na biblioteca"…). */
   const [focusTarget, setFocusTarget] = useState<number | null>(null)
   const [storage, setStorage] = useState<StorageInfo | null>(null)
+  const [update, setUpdate] = useState<UpdateState>({ status: 'idle', version: null, percent: 0 })
+  const [version, setVersion] = useState('')
   const runningRef = useRef<number | null>(null)
   runningRef.current = runningId
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -121,6 +123,17 @@ export function App() {
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
     window.api.getDownloads().then(setDownloads)
+    window.api.appVersion().then(setVersion)
+    window.api.updateState().then(setUpdate)
+    let lastUpdate = ''
+    const offUpdate = window.api.onUpdate((u) => {
+      setUpdate(u)
+      const key = `${u.status}:${u.version}`
+      if (key === lastUpdate) return
+      lastUpdate = key
+      if (u.status === 'ready') notify(`Versão ${u.version} pronta — reinicie em Configurações (ou ao fechar o app)`)
+      if (u.status === 'portable') notify(`Versão ${u.version} disponível — baixe o instalador em Configurações`)
+    })
     const offDownloads = window.api.onDownloads(setDownloads)
     const offLibrary = window.api.onLibraryChanged((msg) => {
       if (msg) notify(msg)
@@ -142,6 +155,7 @@ export function App() {
       offDownloads()
       offLibrary()
       offOverlay()
+      offUpdate()
     }
   }, [notify, reload])
 
@@ -302,6 +316,8 @@ export function App() {
           onSettings={setSettings}
           downloads={downloads}
           storage={storage}
+          version={version}
+          update={update}
           notify={notify}
           onClose={() => setOverlay({ kind: 'none' })}
         />

@@ -212,6 +212,17 @@ export interface GameAchievements {
   list: Achievement[]
 }
 
+/**
+ * idle: up to date (or not checked); downloading/ready: installed build updating itself;
+ * portable: a newer version exists, but the portable build can't install it.
+ */
+export interface UpdateState {
+  status: 'idle' | 'downloading' | 'ready' | 'portable'
+  version: string | null
+  /** 0–1 while downloading. */
+  percent: number
+}
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface LauncherApi {
@@ -252,6 +263,13 @@ export interface LauncherApi {
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
   telegramCommand(command: string): Promise<Result<null>>
   readClipboard(): Promise<string>
+  appVersion(): Promise<string>
+  updateState(): Promise<UpdateState>
+  onUpdate(cb: (s: UpdateState) => void): () => void
+  /** Restart into the downloaded update. */
+  installUpdate(): Promise<void>
+  /** Opens the releases page (portable build: download the installer). */
+  openReleases(): Promise<void>
   /** Achievements for a library game, read from Achievement Watcher Next; null = none found. */
   achievements(gameId: number): Promise<GameAchievements | null>
   /** In-game quick menu: bring the launcher over the running game, or send it back. */
