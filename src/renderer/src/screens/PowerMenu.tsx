@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { ButtonHints } from '../components/ButtonHints'
 import { useInput } from '../input/useInput'
 
-type Action = 'sleep' | 'restart' | 'shutdown'
+type Action = 'sleep' | 'restart' | 'shutdown' | 'quit'
 
 interface Props {
-  /** A game is running: restart/shutdown close it without saving. */
+  /** A game is running: restart/shutdown close it without saving; quitting leaves it open. */
   gameRunning: boolean
   onPower(action: Action): void
   onClose(): void
@@ -15,6 +15,7 @@ const ITEMS: { id: Action | 'cancel'; label: string; icon: string }[] = [
   { id: 'sleep', label: 'Suspender', icon: '☾' },
   { id: 'restart', label: 'Reiniciar', icon: '↻' },
   { id: 'shutdown', label: 'Desligar', icon: '⏻' },
+  { id: 'quit', label: 'Fechar o app', icon: '⇥' },
   { id: 'cancel', label: 'Cancelar', icon: '✕' }
 ]
 
@@ -54,7 +55,9 @@ export function PowerMenu({ gameRunning, onPower, onClose }: Props) {
           ))}
         </div>
         {gameRunning && (
-          <p className="detail-note">Há um jogo aberto: reiniciar ou desligar fecha ele sem salvar.</p>
+          <p className="detail-note">
+            Há um jogo aberto: reiniciar ou desligar fecha ele sem salvar. Fechar o app deixa o jogo aberto.
+          </p>
         )}
       </div>
       <ButtonHints

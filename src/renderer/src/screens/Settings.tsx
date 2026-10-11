@@ -94,10 +94,18 @@ export function Settings(props: Props) {
         ? { label: 'Versão', value: `${version} · baixando ${update.version} (${Math.round(update.percent * 100)}%)`, run: () => {} }
         : update.status === 'portable'
           ? { label: 'Versão', value: `${version} · ${update.version} disponível — baixar instalador`, run: () => window.api.openReleases() }
-          : { label: 'Versão', value: version ? `${version} · atualizada` : '—', run: () => {} }
+          : {
+              label: 'Versão',
+              value: version ? `${version} · verificar agora` : '—',
+              run: async () => {
+                notify('Verificando atualização…')
+                const res = await window.api.checkUpdate()
+                notify(res.ok ? res.value : `Não deu pra verificar: ${res.error}`)
+              }
+            }
 
   const items = [
-    { label: 'Energia', value: 'Suspender · reiniciar · desligar', run: onPower },
+    { label: 'Energia', value: 'Suspender · reiniciar · desligar · fechar o app', run: onPower },
     updateItem,
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
     { label: 'Reescanear biblioteca', value: '', run: onRescan, disabled: !settings.gamesRoot },

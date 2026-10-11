@@ -59,6 +59,7 @@ export class Updater {
       // Offline or GitHub hiccup: keep whatever we knew and try again later.
       if (this.state.status === 'downloading') this.set({ status: 'idle' })
     })
+    this.started = true
     const check = () => autoUpdater.checkForUpdates().catch(() => {})
     check()
     setInterval(check, CHECK_EVERY_MS)
@@ -79,6 +80,24 @@ export class Updater {
     } catch {
       // Try again on the next interval.
     }
+  }
+
+  private started = false
+
+  /**
+   * "Verificar agora" in Settings: same check, but the outcome (or the error the background check
+   * swallows) is reported back.
+   */
+  async checkNow(): Promise<string> {
+    if (!app.isPackaged) throw new Error('Atualização só funciona no app instalado')
+    if (isPortable()) {
+      await this.checkPortable()
+      return this.state.status === 'portable' ? `Versão ${this.state.version} disponível` : 'Já está na versão mais recente'
+    }
+    if (!this.started) throw new Error('Atualizador não iniciado')
+    const res = await autoUpdater.checkForUpdates()
+    const latest = res?.updateInfo.version
+    return latest && isNewer(latest, app.getVersion()) ? `Baixando a versão ${latest}…` : 'Já está na versão mais recente'
   }
 
   /** Restarts into the downloaded version (installer runs silently). */

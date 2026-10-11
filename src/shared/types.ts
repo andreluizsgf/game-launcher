@@ -268,6 +268,10 @@ export interface LauncherApi {
   appVersion(): Promise<string>
   updateState(): Promise<UpdateState>
   onUpdate(cb: (s: UpdateState) => void): () => void
+  /** Checks for an update right away; resolves to a message for the user. */
+  checkUpdate(): Promise<Result<string>>
+  /** Closes the launcher (a downloaded update installs on the way out). */
+  quitApp(): Promise<void>
   /** Restart into the downloaded update. */
   installUpdate(): Promise<void>
   /** Opens the releases page (portable build: download the installer). */

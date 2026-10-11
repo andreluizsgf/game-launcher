@@ -340,6 +340,14 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   updater.start()
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('update:get', () => updater.current())
+  ipcMain.handle('update:check', async (): Promise<Result<string>> => {
+    try {
+      return ok(await updater.checkNow())
+    } catch (err) {
+      return fail(err)
+    }
+  })
+  ipcMain.handle('app:quit', () => app.quit())
   ipcMain.handle('update:install', () => {
     // Never yank the launcher from under a running game; it installs on quit anyway.
     if (runner.current() == null) updater.install()

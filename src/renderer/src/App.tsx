@@ -334,6 +334,7 @@ export function App() {
           gameRunning={runningId != null}
           onPower={async (action) => {
             setOverlay({ kind: 'none' })
+            if (action === 'quit') return void window.api.quitApp()
             const res = await window.api.power(action)
             if (!res.ok) notify(res.error)
           }}
