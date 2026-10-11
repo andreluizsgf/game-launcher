@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'child_process'
+import { shell } from 'electron'
 import { dirname, sep } from 'path'
 import type { Game } from '@shared/types'
 
@@ -14,6 +15,8 @@ export interface RunnerHooks {
 const POLL_MS = 5000
 /** Grace period for launcher stubs that exit before the real game process shows up. */
 const STARTUP_GRACE_MS = 20000
+/** Store launches may start Steam/Epic, sync saves or patch first. */
+const STORE_GRACE_MS = 120000
 
 interface Proc {
   pid: number
@@ -65,7 +68,7 @@ export class Runner {
   async launch(game: Game): Promise<void> {
     const exe = game.exeOverride ?? game.exePath
     if (!game.folder) throw new Error('Jogo não instalado')
-    if (!exe) throw new Error('Nenhum executável encontrado para este jogo')
+    if (!exe && !game.launchUri) throw new Error('Nenhum executável encontrado para este jogo')
     const gameFolder = game.folder
     if (this.running.has(game.id)) throw new Error('Jogo já está rodando')
 
@@ -75,23 +78,28 @@ export class Runner {
 
     if (process.platform !== 'win32') {
       // Dev stub on macOS/Linux: simulate a short session.
-      console.log(`[runner] stub launch: ${exe}`)
+      console.log(`[runner] stub launch: ${game.launchUri ?? exe}`)
       this.hooks.onStart(game, startedAt)
       const t = setTimeout(() => this.finish(game, startedAt), Number(process.env.GL_STUB_SECONDS ?? 3) * 1000)
       this.running.set(game.id, t)
       return
     }
 
-    const child = spawn(exe, [], { cwd: dirname(exe), detached: true, stdio: 'ignore' })
-    child.on('error', (e) => console.error('[runner] spawn error', e))
-    child.unref()
+    if (game.launchUri) {
+      // Steam/Epic start the game themselves (DRM, cloud saves, updates); we still track it by folder.
+      await shell.openExternal(game.launchUri)
+    } else {
+      const child = spawn(exe!, [], { cwd: dirname(exe!), detached: true, stdio: 'ignore' })
+      child.on('error', (e) => console.error('[runner] spawn error', e))
+      child.unref()
+    }
     this.hooks.onStart(game, startedAt)
 
     const folder = folderKey(gameFolder)
     const tick = async (): Promise<void> => {
       const alive = (await listProcesses()).some(inFolder(folder))
       if (!this.games.has(game.id)) return // stopped while listing
-      const inGrace = Date.now() - startedAt < STARTUP_GRACE_MS
+      const inGrace = Date.now() - startedAt < (game.launchUri ? STORE_GRACE_MS : STARTUP_GRACE_MS)
       if (alive || inGrace) {
         this.running.set(game.id, setTimeout(tick, POLL_MS))
       } else {

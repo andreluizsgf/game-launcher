@@ -13,7 +13,8 @@ export async function cacheArt(dir: string, g: IgdbGame): Promise<{ coverPath: s
   return { coverPath, artPath }
 }
 
-async function download(url: string, dest: string): Promise<string | null> {
+/** Downloads `url` to `dest` once; null when it fails (no art beats a broken image). */
+export async function download(url: string, dest: string): Promise<string | null> {
   if (existsSync(dest)) return dest
   try {
     const res = await fetch(url)

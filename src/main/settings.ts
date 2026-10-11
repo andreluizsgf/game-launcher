@@ -7,6 +7,8 @@ import { findQbittorrent } from './telegram/qbittorrent'
 /** On-disk shape. Secrets (IGDB secret, Telegram hash/session) are encrypted with the OS keychain (safeStorage). */
 export interface StoredSettings {
   gamesRoot: string | null
+  steamLibrary: boolean
+  epicLibrary: boolean
   fullscreen: boolean
   openAtLogin: boolean
   igdbClientId: string | null
@@ -25,6 +27,8 @@ export interface StoredSettings {
 
 const DEFAULTS: StoredSettings = {
   gamesRoot: null,
+  steamLibrary: true,
+  epicLibrary: true,
   fullscreen: false,
   openAtLogin: false,
   igdbClientId: null,
@@ -60,6 +64,8 @@ export function saveSettings(s: StoredSettings): void {
 export function publicSettings(s: StoredSettings): Settings {
   return {
     gamesRoot: s.gamesRoot,
+    steamLibrary: s.steamLibrary,
+    epicLibrary: s.epicLibrary,
     fullscreen: s.fullscreen,
     openAtLogin: s.openAtLogin,
     igdbClientId: s.igdbClientId,

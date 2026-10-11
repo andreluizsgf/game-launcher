@@ -52,7 +52,12 @@ const MIGRATIONS: string[] = [
    DROP TABLE games;
    ALTER TABLE games_v2 RENAME TO games;`,
   // v3: full release date (ms) for the "Aguardados" shelf.
-  `ALTER TABLE games ADD COLUMN release_date INTEGER;`
+  `ALTER TABLE games ADD COLUMN release_date INTEGER;`,
+  // v4: games owned by Steam/Epic (launched through the platform).
+  `ALTER TABLE games ADD COLUMN source TEXT NOT NULL DEFAULT 'folder';
+   ALTER TABLE games ADD COLUMN external_id TEXT;
+   ALTER TABLE games ADD COLUMN launch_uri TEXT;
+   CREATE UNIQUE INDEX games_external ON games(source, external_id) WHERE external_id IS NOT NULL;`
 ]
 
 export function openDb(file: string): Database.Database {

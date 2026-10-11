@@ -4,7 +4,11 @@ import { basename, dirname, join, parse, resolve } from 'path'
 import type { GameAchievements, StorageInfo } from '@shared/types'
 import { AwnReader, awnDataDir } from './achievements/awn'
 import type { CatalogHit, Game, Result, Settings, SettingsPatch, StoreSection, TgLoginStep, TgThread } from '@shared/types'
-import { cacheArt } from './catalog/art'
+import { mkdirSync } from 'fs'
+import { titlesMatch } from '@shared/titleKey'
+import { cacheArt, download } from './catalog/art'
+import { scanEpic } from './platforms/epic'
+import { scanSteam, steamArt } from './platforms/steam'
 import { IgdbClient, imageUrl, type IgdbGame } from './catalog/igdb'
 import { StoreService } from './catalog/store'
 import { mockSections } from './catalog/storeMock'
@@ -76,9 +80,40 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   })
   downloads.start()
 
+  /** Store libraries: installed Steam/Epic games, with artwork for the ones that just showed up. */
+  const syncPlatforms = async () => {
+    const steam = settings.steamLibrary ? await scanSteam() : []
+    for (const id of repo.syncPlatform('steam', steam)) {
+      const g = repo.get(id)
+      if (!g?.externalId) continue
+      const art = steamArt(g.externalId)
+      mkdirSync(artDir, { recursive: true })
+      const [cover, wide] = await Promise.all([
+        download(art.cover, join(artDir, `steam-${g.externalId}-cover.jpg`)),
+        download(art.art, join(artDir, `steam-${g.externalId}-art.jpg`))
+      ])
+      repo.setArt(id, cover, wide)
+    }
+    // Epic has no public art CDN: link to the IGDB entry with the same title, when IGDB is set up.
+    const epic = settings.epicLibrary ? scanEpic() : []
+    for (const id of repo.syncPlatform('epic', epic)) {
+      const g = repo.get(id)
+      if (!g || !igdbCredentials(settings)) continue
+      try {
+        const hit = (await igdb.search(g.title)).find((h) => titlesMatch(h.name, g.title))
+        if (hit && !repo.byIgdbId(hit.id)) repo.applyCatalog(id, await toMeta(hit))
+      } catch {
+        // Offline / IGDB down: it stays with its Epic name; "Identificar jogo" works later.
+      }
+    }
+  }
+
   const rescan = async () => {
-    if (!settings.gamesRoot) return { added: 0, updated: 0, removed: 0, total: 0 }
-    return repo.sync(await scanRoot(settings.gamesRoot))
+    const result = settings.gamesRoot
+      ? repo.sync(await scanRoot(settings.gamesRoot))
+      : { added: 0, updated: 0, removed: 0, total: 0 }
+    await syncPlatforms().catch((err) => console.warn('[platforms] sync failed', err))
+    return result
   }
 
   const toMeta = async (g: IgdbGame): Promise<CatalogMeta> => ({
@@ -117,6 +152,12 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     const root = settings.gamesRoot
     if (!game?.folder) return fail('Jogo não instalado')
     if (runner.current() === gameId) return fail('Feche o jogo antes de desinstalar')
+    // Store games: the store uninstalls (and the next rescan drops them).
+    if (game.source === 'steam' && game.externalId) {
+      await shell.openExternal(`steam://uninstall/${game.externalId}`)
+      return ok(null)
+    }
+    if (game.source !== 'folder') return fail('Desinstale pela Epic Games Launcher')
     // Only ever a direct subfolder of the games folder: never the root itself or anything outside it.
     const norm = (p: string) => resolve(p).replace(/[\\/]+$/, '').toLowerCase()
     if (!root || norm(dirname(game.folder)) !== norm(root)) {
@@ -190,7 +231,11 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       if (other && other.id !== gameId) {
         // Linking an installed game to a catalog entry that is only on the wishlist: absorb it.
         if (!other.folder) repo.removeCatalog(other.id)
-        else return fail(`"${other.title}" já está ligado a esse jogo`)
+        // Hidden = its folder is gone: this game is the same one in a new place. Reunite them.
+        else if (other.hidden) {
+          repo.absorb(other.id, gameId)
+          return ok(repo.applyCatalog(other.id, await fetchMeta(igdbId)))
+        } else return fail(`"${other.title}" já está ligado a esse jogo`)
       }
       return ok(repo.applyCatalog(gameId, await fetchMeta(igdbId)))
     } catch (err) {
@@ -203,6 +248,8 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   ipcMain.handle('settings:get', pub)
   ipcMain.handle('settings:set', async (_e, patch: SettingsPatch) => {
     if (patch.gamesRoot !== undefined) settings.gamesRoot = patch.gamesRoot
+    if (patch.steamLibrary !== undefined) settings.steamLibrary = patch.steamLibrary
+    if (patch.epicLibrary !== undefined) settings.epicLibrary = patch.epicLibrary
     if (patch.igdbClientId !== undefined) settings.igdbClientId = patch.igdbClientId?.trim() || null
     if (patch.qbWebUrl !== undefined) settings.qbWebUrl = patch.qbWebUrl.trim().replace(/\/+$/, '') || 'http://localhost:8080'
     if (patch.qbWebUser !== undefined) settings.qbWebUser = patch.qbWebUser?.trim() || null

@@ -272,6 +272,7 @@ export function App() {
           onUninstall={async (g) => {
             const res = await window.api.uninstallGame(g.id)
             if (!res.ok) return notify(res.error)
+            if (g.source === 'steam') return notify('Confirme a desinstalação na Steam')
             notify(`${g.title} desinstalado — a pasta está na Lixeira`)
             if (!g.igdbId) setOverlay({ kind: 'none' })
             await reload(g.igdbId ? g.id : undefined)

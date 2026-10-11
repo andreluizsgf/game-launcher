@@ -65,14 +65,15 @@ export function GameDetail(props: Props) {
           } as Item
         ]
       : installed
-        ? [{ id: 'play', label: 'Jogar', disabled: !game.exePath } as Item]
+        ? [{ id: 'play', label: 'Jogar', disabled: !(game.exePath || game.launchUri) } as Item]
         : []),
     ...(achievements
       ? [{ id: 'achievements', label: `Conquistas · ${achievements.unlocked}/${achievements.total}` } as Item]
       : []),
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
-    ...(game.folder && !running
+    // Epic has no uninstall link; the launcher's own library does it.
+    ...(game.folder && !running && game.source !== 'epic'
       ? [
           {
             id: 'uninstall',
@@ -158,13 +159,23 @@ export function GameDetail(props: Props) {
           {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}
           {confirm === 'uninstall' && (
             <p className="detail-note">
-              A pasta vai pra Lixeira (dá pra restaurar de lá).{' '}
-              {game.igdbId ? 'O jogo continua na biblioteca.' : 'O jogo sai da biblioteca.'}
+              {game.source === 'steam' ? (
+                'A Steam vai abrir pra confirmar a desinstalação.'
+              ) : (
+                <>
+                  A pasta vai pra Lixeira (dá pra restaurar de lá).{' '}
+                  {game.igdbId ? 'O jogo continua na biblioteca.' : 'O jogo sai da biblioteca.'}
+                </>
+              )}
             </p>
           )}
           {installed && (
-            <p className="path" title={game.exeOverride ?? game.exePath ?? ''}>
-              {game.exeOverride ?? game.exePath ?? 'Nenhum executável encontrado'}
+            <p className="path" title={game.exeOverride ?? game.exePath ?? game.folder ?? ''}>
+              {game.source === 'steam'
+                ? `Steam · ${game.folder}`
+                : game.source === 'epic'
+                  ? `Epic Games · ${game.folder}`
+                  : (game.exeOverride ?? game.exePath ?? 'Nenhum executável encontrado')}
             </p>
           )}
           <div className="menu">

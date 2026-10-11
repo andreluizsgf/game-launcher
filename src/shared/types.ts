@@ -1,5 +1,8 @@
 export type InputMode = 'auto' | 'xinput' | 'kbm' | 'native'
 
+/** Where an installed game comes from: a folder in the games folder, or a store's own library. */
+export type GameSource = 'folder' | 'steam' | 'epic'
+
 export interface Game {
   id: number
   /** null = added from the catalog, not installed yet. */
@@ -21,10 +24,18 @@ export interface Game {
   totalSeconds: number
   hidden: boolean
   inputMode: InputMode
+  source: GameSource
+  /** Steam app id / Epic namespace:item:app. */
+  externalId: string | null
+  /** Platform games launch through their store (steam://, com.epicgames.launcher://). */
+  launchUri: string | null
 }
 
 export interface Settings {
   gamesRoot: string | null
+  /** Show installed games from these stores' libraries. */
+  steamLibrary: boolean
+  epicLibrary: boolean
   fullscreen: boolean
   /** Start with Windows, straight into fullscreen. */
   openAtLogin: boolean
@@ -50,6 +61,8 @@ export type SettingsPatch = Partial<
   Pick<
     Settings,
     | 'gamesRoot'
+    | 'steamLibrary'
+    | 'epicLibrary'
     | 'fullscreen'
     | 'openAtLogin'
     | 'igdbClientId'

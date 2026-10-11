@@ -6,6 +6,8 @@ import { formatDownload, formatPlaytime, formatReleaseDate } from '../format'
 import { useInput } from '../input/useInput'
 import type { Shelf } from '../library/shelves'
 
+const SOURCE_LABEL: Record<Game['source'], string> = { folder: '', steam: 'Steam', epic: 'Epic Games' }
+
 interface ShelfTab {
   id: Shelf
   label: string
@@ -143,7 +145,7 @@ export function Home(props: Props) {
           <div className="hero-actions">
             <button
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
-              disabled={runningId !== game.id && (!game.folder || !game.exePath || !!dl)}
+              disabled={runningId !== game.id && (!game.folder || !(game.exePath || game.launchUri) || !!dl)}
               onClick={() => onLaunch(game)}
             >
               {runningId === game.id
@@ -154,7 +156,7 @@ export function Home(props: Props) {
                     ? shelf === 'upcoming'
                       ? 'Em breve'
                       : 'Não instalado'
-                    : game.exePath
+                    : game.exePath || game.launchUri
                       ? 'Jogar'
                       : 'Sem executável'}
             </button>
@@ -162,7 +164,7 @@ export function Home(props: Props) {
               {dl
                 ? formatDownload(dl)
                 : game.folder
-                  ? formatPlaytime(game.totalSeconds)
+                  ? [SOURCE_LABEL[game.source], formatPlaytime(game.totalSeconds)].filter(Boolean).join(' · ')
                   : shelf === 'upcoming'
                     ? `Lança em ${formatReleaseDate(game.releaseDate)}`
                     : [game.releaseYear, game.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}

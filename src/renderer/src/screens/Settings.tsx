@@ -108,7 +108,23 @@ export function Settings(props: Props) {
     { label: 'Energia', value: 'Suspender · reiniciar · desligar · fechar o app', run: onPower },
     updateItem,
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
-    { label: 'Reescanear biblioteca', value: '', run: onRescan, disabled: !settings.gamesRoot },
+    { label: 'Reescanear biblioteca', value: '', run: onRescan },
+    {
+      label: 'Biblioteca Steam',
+      value: settings.steamLibrary ? 'Mostrando jogos instalados' : 'Desligada',
+      run: async () => {
+        onSettings(await window.api.setSettings({ steamLibrary: !settings.steamLibrary }))
+        onRescan()
+      }
+    },
+    {
+      label: 'Biblioteca Epic Games',
+      value: settings.epicLibrary ? 'Mostrando jogos instalados' : 'Desligada',
+      run: async () => {
+        onSettings(await window.api.setSettings({ epicLibrary: !settings.epicLibrary }))
+        onRescan()
+      }
+    },
     {
       label: 'Armazenamento',
       value: storage
