@@ -13,6 +13,8 @@ interface Props {
   onSetIgdbClientId(v: string): void
   onSetIgdbSecret(v: string): void
   onSettings(s: S): void
+  /** Opens the power menu (suspend / restart / shut down). */
+  onPower(): void
   /** For the qBittorrent Web UI connection status. */
   downloads: DownloadsStatus
   storage: StorageInfo | null
@@ -51,7 +53,7 @@ const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean 
 
 export function Settings(props: Props) {
   const { settings, onPickRoot, onRescan, onToggleFullscreen, onSetIgdbClientId, onSetIgdbSecret, onSettings } = props
-  const { downloads, storage, version, update, notify, onClose } = props
+  const { downloads, storage, version, update, onPower, notify, onClose } = props
   const [editing, setEditing] = useState<Editing>(null)
   const tgReady = !!settings.telegramApiId && settings.hasTelegramApiHash
 
@@ -95,6 +97,7 @@ export function Settings(props: Props) {
           : { label: 'Versão', value: version ? `${version} · atualizada` : '—', run: () => {} }
 
   const items = [
+    { label: 'Energia', value: 'Suspender · reiniciar · desligar', run: onPower },
     updateItem,
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
     { label: 'Reescanear biblioteca', value: '', run: onRescan, disabled: !settings.gamesRoot },

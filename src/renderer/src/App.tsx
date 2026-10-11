@@ -11,6 +11,7 @@ import { startMouseTracking } from './input/mode'
 import { activeDownloads, groupShelves, SHELF_LABEL, SHELF_ORDER, stepShelf, type Shelf } from './library/shelves'
 import { GameDetail } from './screens/GameDetail'
 import { Home } from './screens/Home'
+import { PowerMenu } from './screens/PowerMenu'
 import { Search, type SearchMode } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -22,6 +23,7 @@ type Overlay =
   | { kind: 'settings' }
   | { kind: 'search'; mode: SearchMode }
   | { kind: 'storeDetail'; game: StoreGame }
+  | { kind: 'power' }
 
 export function App() {
   const [games, setGames] = useState<Game[]>([])
@@ -43,6 +45,7 @@ export function App() {
   const [version, setVersion] = useState('')
   const runningRef = useRef<number | null>(null)
   runningRef.current = runningId
+  const atHomeRef = useRef(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const notify = useCallback((msg: string) => {
@@ -104,10 +107,12 @@ export function App() {
         if (s.connected !== prev) notify(s.connected ? 'Controle conectado' : 'Controle desconectado')
         prev = s.connected
       },
-      // PS button: quick menu during a game, otherwise back to the games home (like the PS5).
+      // PS button: launcher over the game while playing; otherwise back to the games home, and from
+      // the home itself the power menu (like the PS5).
       () => {
         if (runningRef.current != null) return void window.api.overlayToggle()
         if (!document.hasFocus()) return
+        if (atHomeRef.current) return setOverlay({ kind: 'power' })
         setOverlay({ kind: 'none' })
         setTab('games')
       }
@@ -179,6 +184,7 @@ export function App() {
   }
 
   const game = shelfGames[Math.min(focus, shelfGames.length - 1)] ?? null
+  atHomeRef.current = tab === 'games' && overlay.kind === 'none'
   const homeArt: BackdropArt | null = game
     ? { key: `game-${game.id}`, url: mediaUrl(game.artPath ?? game.coverPath), wide: !!game.artPath, seed: game.title }
     : null
@@ -314,11 +320,23 @@ export function App() {
             notify(v.trim() ? 'Secret salvo' : 'Secret removido')
           }}
           onSettings={setSettings}
+          onPower={() => setOverlay({ kind: 'power' })}
           downloads={downloads}
           storage={storage}
           version={version}
           update={update}
           notify={notify}
+          onClose={() => setOverlay({ kind: 'none' })}
+        />
+      )}
+      {overlay.kind === 'power' && (
+        <PowerMenu
+          gameRunning={runningId != null}
+          onPower={async (action) => {
+            setOverlay({ kind: 'none' })
+            const res = await window.api.power(action)
+            if (!res.ok) notify(res.error)
+          }}
           onClose={() => setOverlay({ kind: 'none' })}
         />
       )}

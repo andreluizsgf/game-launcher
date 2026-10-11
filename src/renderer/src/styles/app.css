@@ -430,3 +430,17 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .ach.locked .ach-body strong { color: var(--fg-dim); }
 .ach-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 14px; flex: none; }
 .progress.small { height: 4px; max-width: 280px; }
+
+/* Power menu */
+.power-menu { text-align: center; }
+.power-menu h2 { font-size: 34px; font-weight: 300; margin: 0 0 28px; }
+.power-items { display: flex; gap: 20px; justify-content: center; }
+.power-item {
+  width: 150px; height: 150px; border-radius: 22px; border: 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(255, 255, 255, 0.08); color: var(--fg); font: inherit; font-size: 18px;
+  transition: background 150ms, color 150ms, transform 150ms;
+}
+.power-item.focused { background: var(--fg); color: #0b0d12; transform: scale(1.06); }
+.power-icon { font-size: 40px; line-height: 1; }
+.power-menu .detail-note { margin: 24px auto 0; }

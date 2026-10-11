@@ -263,6 +263,8 @@ export interface LauncherApi {
   /** Sends a bot command (e.g. `/download123`); the reply joins the current thread. */
   telegramCommand(command: string): Promise<Result<null>>
   readClipboard(): Promise<string>
+  /** Suspend, restart or shut down the PC (Windows). */
+  power(action: 'sleep' | 'restart' | 'shutdown'): Promise<Result<null>>
   appVersion(): Promise<string>
   updateState(): Promise<UpdateState>
   onUpdate(cb: (s: UpdateState) => void): () => void

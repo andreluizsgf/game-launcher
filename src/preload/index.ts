@@ -56,6 +56,7 @@ const api: LauncherApi = {
   onUpdate: (cb) => on<UpdateState>('update:state', cb),
   installUpdate: () => ipcRenderer.invoke('update:install'),
   openReleases: () => ipcRenderer.invoke('update:openReleases'),
+  power: (action) => ipcRenderer.invoke('system:power', action),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   onGameEnded: (cb) => on<GameEndedEvent>('game:ended', cb),
   onGameStarted: (cb) => on<number>('game:started', cb)

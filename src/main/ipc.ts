@@ -26,6 +26,7 @@ import {
   type StoredSettings
 } from './settings'
 import { resolveQbittorrent } from './telegram/qbittorrent'
+import { runPower, type PowerAction } from './system/power'
 import { TelegramService } from './telegram/service'
 import { RELEASES_REPO, Updater } from './updater'
 
@@ -346,6 +347,16 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   ipcMain.handle('update:openReleases', () =>
     shell.openExternal(`https://github.com/${RELEASES_REPO.owner}/${RELEASES_REPO.repo}/releases/latest`)
   )
+
+  ipcMain.handle('system:power', async (_e, action: PowerAction): Promise<Result<null>> => {
+    if (!['sleep', 'restart', 'shutdown'].includes(action)) return fail('Ação inválida')
+    try {
+      await runPower(action)
+      return ok(null)
+    } catch (err) {
+      return fail(err)
+    }
+  })
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())
 
