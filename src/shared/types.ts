@@ -29,6 +29,8 @@ export interface Game {
   externalId: string | null
   /** Platform games launch through their store (steam://, com.epicgames.launcher://). */
   launchUri: string | null
+  /** Repack installer (setup.exe) found in the folder; "Instalar" while there's no game exe yet. */
+  installerPath: string | null
 }
 
 export interface Settings {
@@ -245,6 +247,10 @@ export interface LauncherApi {
   removeGame(gameId: number): Promise<Result<null>>
   /** Moves the game folder to the Recycle Bin (and drops its torrent from qBittorrent). */
   uninstallGame(gameId: number): Promise<Result<null>>
+  /** Runs the repack installer into the game folder; resolves when it closes. */
+  installGame(gameId: number): Promise<Result<null>>
+  /** Deletes the repack files once the game is installed, keeping only the installed game. */
+  cleanInstaller(gameId: number): Promise<Result<null>>
   getSettings(): Promise<Settings>
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>

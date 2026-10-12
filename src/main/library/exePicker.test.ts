@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isBlocked, pickExe, titleFromFolder } from './exePicker'
+import { isBlocked, pickExe, pickInstaller, titleFromFolder } from './exePicker'
 
 describe('pickExe', () => {
   it('drops uninstallers and redists', () => {
@@ -54,6 +54,26 @@ describe('pickExe', () => {
 
   it('isBlocked catches crash handlers', () => {
     expect(isBlocked({ relPath: 'UnityCrashHandler64.exe', size: 1 })).toBe(true)
+  })
+})
+
+describe('pickInstaller', () => {
+  const c = (relPath: string) => ({ relPath, size: 1 })
+
+  it('finds a repack setup at the top or in the release folder', () => {
+    expect(
+      pickInstaller([c('Hades [FitGirl Repack]/setup.exe'), c('Hades [FitGirl Repack]/MD5/QuickSFV.exe')])
+    ).toEqual(c('Hades [FitGirl Repack]/setup.exe'))
+    expect(pickInstaller([c('a/setup.exe'), c('setup.exe')])).toEqual(c('setup.exe'))
+  })
+
+  it('ignores redist installers deeper down', () => {
+    expect(pickInstaller([c('Game/_CommonRedist/DirectX/setup.exe')])).toBeNull()
+    expect(pickInstaller([c('Game.exe')])).toBeNull()
+  })
+
+  it('leaves no playable exe in a FitGirl repack', () => {
+    expect(pickExe([c('R/setup.exe'), c('R/MD5/QuickSFV.EXE')], 'Hades')).toBeNull()
   })
 })
 

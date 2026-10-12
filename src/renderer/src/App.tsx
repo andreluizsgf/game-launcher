@@ -30,6 +30,7 @@ export function App() {
   const [overlay, setOverlay] = useState<Overlay>({ kind: 'none' })
   const [tab, setTab] = useState<Tab>('games')
   const [storeArt, setStoreArt] = useState<BackdropArt | null>(null)
+  const [installingId, setInstallingId] = useState<number | null>(null)
 
   const { toast, notify } = useToast()
   const { downloads, update, version } = useSystemStatus(notify)
@@ -68,8 +69,8 @@ export function App() {
 
   const onHomeConfirm = (g: Game) => {
     if (session.runningId === g.id) return void session.resume()
-    if (g.folder && !lib.dlByGame.has(g.id)) return session.launch(g)
-    // Not installed: show where to put it instead of failing silently.
+    if (g.folder && (g.exePath || g.launchUri) && !lib.dlByGame.has(g.id)) return session.launch(g)
+    // Not installed (or a repack to install): show what to do instead of failing silently.
     setOverlay({ kind: 'detail', gameId: g.id })
   }
   const showInLibrary = (gameId: number) => {
@@ -144,6 +145,7 @@ export function App() {
         <GameDetail
           game={detailGame}
           running={session.runningId === detailGame.id}
+          installing={installingId === detailGame.id}
           download={lib.dlByGame.get(detailGame.id) ?? null}
           gamesRoot={settings?.gamesRoot ?? null}
           telegramPeer={telegramPeer}
@@ -157,6 +159,19 @@ export function App() {
             notify(`${g.title} desinstalado — a pasta está na Lixeira`)
             if (!g.igdbId) close()
             await lib.reload(g.igdbId ? g.id : undefined)
+          }}
+          onInstall={async (g) => {
+            setInstallingId(g.id)
+            const res = await window.api.installGame(g.id)
+            setInstallingId(null)
+            await lib.reload(g.id)
+            notify(res.ok ? `${g.title} instalado — pronto pra jogar` : res.error)
+          }}
+          onCleanInstaller={async (g) => {
+            const res = await window.api.cleanInstaller(g.id)
+            if (!res.ok) return notify(res.error)
+            notify('Instalador na Lixeira')
+            await lib.reload(g.id)
           }}
           onIdentify={(g) => setOverlay({ kind: 'search', mode: { kind: 'link', game: g } })}
           onRemove={async (g) => {

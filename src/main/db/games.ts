@@ -25,6 +25,7 @@ interface GameRow {
   source: GameSource
   external_id: string | null
   launch_uri: string | null
+  installer_path: string | null
 }
 
 export interface CatalogMeta {
@@ -58,7 +59,8 @@ const toGame = (r: GameRow): Game => ({
   inputMode: r.input_mode,
   source: r.source,
   externalId: r.external_id,
-  launchUri: r.launch_uri
+  launchUri: r.launch_uri,
+  installerPath: r.installer_path
 })
 
 export class GamesRepo {
@@ -111,18 +113,18 @@ export class GamesRepo {
     const moved = rows.filter((r) => r.folder && !scannedFolders.has(r.folder))
 
     const insert = this.db.prepare(
-      'INSERT INTO games (folder, title, exe_path, cover_path, added_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO games (folder, title, exe_path, installer_path, cover_path, added_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
     // Catalog art wins over a folder cover.jpg only when the game has catalog art.
     const update = this.db.prepare(
-      'UPDATE games SET exe_path = ?, cover_path = COALESCE(?, cover_path), hidden = 0 WHERE id = ?'
+      'UPDATE games SET exe_path = ?, installer_path = ?, cover_path = COALESCE(?, cover_path), hidden = 0 WHERE id = ?'
     )
     const install = this.db.prepare(
-      'UPDATE games SET folder = ?, exe_path = ?, cover_path = COALESCE(cover_path, ?), hidden = 0 WHERE id = ?'
+      'UPDATE games SET folder = ?, exe_path = ?, installer_path = ?, cover_path = COALESCE(cover_path, ?), hidden = 0 WHERE id = ?'
     )
     // A chosen exe from the old location no longer exists.
     const relocate = this.db.prepare(
-      'UPDATE games SET folder = ?, exe_path = ?, exe_override = NULL, cover_path = COALESCE(cover_path, ?), hidden = 0 WHERE id = ?'
+      'UPDATE games SET folder = ?, exe_path = ?, installer_path = ?, exe_override = NULL, cover_path = COALESCE(cover_path, ?), hidden = 0 WHERE id = ?'
     )
     const hide = this.db.prepare('UPDATE games SET hidden = 1 WHERE id = ?')
     const claimed = new Set<number>()
@@ -134,22 +136,22 @@ export class GamesRepo {
       for (const g of scanned) {
         const row = byFolder.get(g.folder)
         if (row) {
-          update.run(g.exePath, row.igdb_id ? null : g.coverPath, row.id)
+          update.run(g.exePath, g.installerPath, row.igdb_id ? null : g.coverPath, row.id)
           updated++
           continue
         }
         const idx = pending.findIndex((p) => titlesMatch(p.title, g.title))
         const mv = idx >= 0 ? -1 : moved.findIndex((m) => !claimed.has(m.id) && titlesMatch(m.title, g.title))
         if (idx >= 0) {
-          install.run(g.folder, g.exePath, g.coverPath, pending[idx].id)
+          install.run(g.folder, g.exePath, g.installerPath, g.coverPath, pending[idx].id)
           pending.splice(idx, 1)
           updated++
         } else if (mv >= 0) {
-          relocate.run(g.folder, g.exePath, g.coverPath, moved[mv].id)
+          relocate.run(g.folder, g.exePath, g.installerPath, g.coverPath, moved[mv].id)
           claimed.add(moved[mv].id)
           updated++
         } else {
-          insert.run(g.folder, g.title, g.exePath, g.coverPath, Date.now())
+          insert.run(g.folder, g.title, g.exePath, g.installerPath, g.coverPath, Date.now())
           added++
         }
       }
@@ -198,12 +200,12 @@ export class GamesRepo {
       this.db.prepare('DELETE FROM games WHERE id = ?').run(fromId)
       this.db
         .prepare(
-          `UPDATE games SET folder = ?, exe_path = ?, exe_override = ?, cover_path = COALESCE(cover_path, ?),
+          `UPDATE games SET folder = ?, exe_path = ?, exe_override = ?, installer_path = ?, cover_path = COALESCE(cover_path, ?),
              total_seconds = total_seconds + ?, last_played_at = NULLIF(MAX(COALESCE(last_played_at, 0), COALESCE(?, 0)), 0),
              hidden = 0
            WHERE id = ?`
         )
-        .run(from.folder, from.exe_path, from.exe_override, from.cover_path, from.total_seconds, from.last_played_at, keepId)
+        .run(from.folder, from.exe_path, from.exe_override, from.installer_path, from.cover_path, from.total_seconds, from.last_played_at, keepId)
     })()
   }
 
@@ -314,6 +316,7 @@ export class GamesRepo {
            folder = CASE WHEN igdb_id IS NULL THEN folder ELSE NULL END,
            exe_path = CASE WHEN igdb_id IS NULL THEN exe_path ELSE NULL END,
            exe_override = CASE WHEN igdb_id IS NULL THEN exe_override ELSE NULL END,
+           installer_path = CASE WHEN igdb_id IS NULL THEN installer_path ELSE NULL END,
            hidden = CASE WHEN igdb_id IS NULL THEN 1 ELSE hidden END
          WHERE id = ?`
       )

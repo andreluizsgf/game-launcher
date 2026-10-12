@@ -145,7 +145,10 @@ export function Home(props: Props) {
           <div className="hero-actions">
             <button
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
-              disabled={runningId !== game.id && (!game.folder || !(game.exePath || game.launchUri) || !!dl)}
+              disabled={
+                runningId !== game.id &&
+                (!game.folder || !(game.exePath || game.launchUri || game.installerPath) || !!dl)
+              }
               onClick={() => onLaunch(game)}
             >
               {runningId === game.id
@@ -158,7 +161,9 @@ export function Home(props: Props) {
                       : 'Não instalado'
                     : game.exePath || game.launchUri
                       ? 'Jogar'
-                      : 'Sem executável'}
+                      : game.installerPath
+                        ? 'Instalar'
+                        : 'Sem executável'}
             </button>
             <span className="hero-meta">
               {dl

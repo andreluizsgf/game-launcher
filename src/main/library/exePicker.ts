@@ -19,10 +19,12 @@ const BLOCKLIST = [
   /^physx/i,
   /^notification_helper/i,
   /^installer/i,
-  /^config(urator)?\.exe$/i
+  /^config(urator)?\.exe$/i,
+  /^quicksfv/i
 ]
 
-const BLOCKED_DIRS = /(^|\/)(_commonredist|redist|redistributables|directx|support|installers?|__installer|prereq\w*|engine\/binaries\/thirdparty)(\/|$)/i
+const BLOCKED_DIRS =
+  /(^|\/)(_commonredist|redist|redistributables|directx|support|installers?|__installer|prereq\w*|md5|engine\/binaries\/thirdparty)(\/|$)/i
 
 const SOFT_PENALTY = /launcher|settings|config|editor|server|helper|benchmark/i
 
@@ -79,6 +81,20 @@ export function pickExe(candidates: ExeCandidate[], folderName: string): ExeCand
   })
   scored.sort((x, y) => y.score - x.score)
   return scored[0].c
+}
+
+const INSTALLER = /^(setup|install)\.exe$/i
+
+/**
+ * Repack installer (FitGirl, DODI, ElAmigos… ship a setup.exe next to the data files): at the top of the
+ * folder or one level down, where downloads put the release folder.
+ */
+export function pickInstaller(candidates: ExeCandidate[]): ExeCandidate | null {
+  return (
+    candidates
+      .filter((c) => c.relPath.split('/').length <= 2 && INSTALLER.test(baseName(c.relPath)))
+      .sort((a, b) => a.relPath.split('/').length - b.relPath.split('/').length)[0] ?? null
+  )
 }
 
 /** "The_Witcher.3-v4.04" → "The Witcher 3" */

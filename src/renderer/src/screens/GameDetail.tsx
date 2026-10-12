@@ -11,6 +11,8 @@ import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThr
 interface Props {
   game: Game
   running: boolean
+  /** Its installer is open. */
+  installing: boolean
   /** Active download of this game, if any. */
   download: DownloadInfo | null
   gamesRoot: string | null
@@ -22,23 +24,38 @@ interface Props {
   onStop(g: Game): void
   /** Moves the game folder to the Recycle Bin. */
   onUninstall(g: Game): void
+  /** Runs the repack's setup.exe. */
+  onInstall(g: Game): void
+  /** Deletes the repack files after installing. */
+  onCleanInstaller(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
 }
 
 type Item = {
-  id: 'play' | 'resume' | 'stop' | 'achievements' | 'telegram' | 'identify' | 'uninstall' | 'remove' | 'back'
+  id:
+    | 'play'
+    | 'install'
+    | 'cleanInstaller'
+    | 'resume'
+    | 'stop'
+    | 'achievements'
+    | 'telegram'
+    | 'identify'
+    | 'uninstall'
+    | 'remove'
+    | 'back'
   label: string
   disabled?: boolean
   danger?: boolean
 }
 
 export function GameDetail(props: Props) {
-  const { game, running, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop, onUninstall } = props
-  const { onIdentify, onRemove, onClose } = props
+  const { game, running, installing, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop } = props
+  const { onUninstall, onInstall, onCleanInstaller, onIdentify, onRemove, onClose } = props
   // Destructive items need a second press.
-  const [confirm, setConfirm] = useState<'stop' | 'uninstall' | null>(null)
+  const [confirm, setConfirm] = useState<'stop' | 'uninstall' | 'cleanInstaller' | null>(null)
   const [achievements, setAchievements] = useState<GameAchievements | null>(null)
   const [achOpen, setAchOpen] = useState(false)
   useEffect(() => {
@@ -46,6 +63,9 @@ export function GameDetail(props: Props) {
   }, [game.id])
   // A folder that's still downloading isn't playable yet.
   const installed = !!game.folder && !download
+  const playable = !!(game.exePath || game.launchUri)
+  // A repack: the download is a setup.exe that still has to be run.
+  const needsInstall = installed && !playable && !!game.installerPath
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
@@ -64,9 +84,11 @@ export function GameDetail(props: Props) {
             danger: confirm === 'stop'
           } as Item
         ]
-      : installed
-        ? [{ id: 'play', label: 'Jogar', disabled: !(game.exePath || game.launchUri) } as Item]
-        : []),
+      : needsInstall
+        ? [{ id: 'install', label: installing ? 'Instalando…' : 'Instalar', disabled: installing } as Item]
+        : installed
+          ? [{ id: 'play', label: 'Jogar', disabled: !playable } as Item]
+          : []),
     ...(achievements
       ? [{ id: 'achievements', label: `Conquistas · ${achievements.unlocked}/${achievements.total}` } as Item]
       : []),
@@ -87,6 +109,15 @@ export function GameDetail(props: Props) {
           } as Item
         ]
       : []),
+    ...(installed && playable && game.installerPath && !running
+      ? [
+          {
+            id: 'cleanInstaller',
+            label: confirm === 'cleanInstaller' ? 'Confirmar: apagar instalador' : 'Apagar instalador',
+            danger: confirm === 'cleanInstaller'
+          } as Item
+        ]
+      : []),
     ...(!game.folder ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
     { id: 'back', label: 'Voltar' }
   ]
@@ -95,12 +126,14 @@ export function GameDetail(props: Props) {
   const run = (it: Item) => {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
+    else if (it.id === 'install') onInstall(game)
     else if (it.id === 'resume') onResume()
-    else if (it.id === 'stop' || it.id === 'uninstall') {
+    else if (it.id === 'stop' || it.id === 'uninstall' || it.id === 'cleanInstaller') {
       if (confirm !== it.id) return setConfirm(it.id)
       setConfirm(null)
       if (it.id === 'stop') onStop(game)
-      else onUninstall(game)
+      else if (it.id === 'uninstall') onUninstall(game)
+      else onCleanInstaller(game)
     }
     else if (it.id === 'telegram') openTelegram()
     else if (it.id === 'achievements') setAchOpen(true)
@@ -156,7 +189,18 @@ export function GameDetail(props: Props) {
             </p>
           )}
           {game.summary && <p className="summary">{game.summary}</p>}
+          {needsInstall && (
+            <p className="detail-note">
+              Esse download é um instalador. Escolha <b>Instalar</b>: ele já vem apontando pra pasta{' '}
+              <code>Jogo</code> dentro da pasta do jogo.
+            </p>
+          )}
           {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}
+          {confirm === 'cleanInstaller' && (
+            <p className="detail-note">
+              Os arquivos do instalador vão pra Lixeira e o torrent sai do qBittorrent. O jogo instalado fica.
+            </p>
+          )}
           {confirm === 'uninstall' && (
             <p className="detail-note">
               {game.source === 'steam' ? (
@@ -170,12 +214,12 @@ export function GameDetail(props: Props) {
             </p>
           )}
           {installed && (
-            <p className="path" title={game.exeOverride ?? game.exePath ?? game.folder ?? ''}>
+            <p className="path" title={game.exeOverride ?? game.exePath ?? game.installerPath ?? game.folder ?? ''}>
               {game.source === 'steam'
                 ? `Steam · ${game.folder}`
                 : game.source === 'epic'
                   ? `Epic Games · ${game.folder}`
-                  : (game.exeOverride ?? game.exePath ?? 'Nenhum executável encontrado')}
+                  : (game.exeOverride ?? game.exePath ?? game.installerPath ?? 'Nenhum executável encontrado')}
             </p>
           )}
           <div className="menu">

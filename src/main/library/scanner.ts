@@ -1,11 +1,12 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
-import { pickExe, titleFromFolder, type ExeCandidate } from './exePicker'
+import { pickExe, pickInstaller, titleFromFolder, type ExeCandidate } from './exePicker'
 
 export interface ScannedGame {
   folder: string // absolute path
   title: string
   exePath: string | null // absolute
+  installerPath: string | null // absolute
   coverPath: string | null
 }
 
@@ -58,11 +59,15 @@ export async function scanRoot(root: string): Promise<ScannedGame[]> {
   return Promise.all(
     dirs.map(async (d) => {
       const folder = join(root, d.name)
-      const exe = pickExe(await collectExes(folder), d.name)
+      const exes = await collectExes(folder)
+      const exe = pickExe(exes, d.name)
+      const installer = pickInstaller(exes)
+      const abs = (c: ExeCandidate | null) => (c ? join(folder, ...c.relPath.split('/')) : null)
       return {
         folder,
         title: titleFromFolder(d.name),
-        exePath: exe ? join(folder, ...exe.relPath.split('/')) : null,
+        exePath: abs(exe),
+        installerPath: abs(installer),
         coverPath: await findCover(folder)
       }
     })

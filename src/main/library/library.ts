@@ -1,6 +1,6 @@
 import { shell } from 'electron'
-import { mkdirSync } from 'fs'
-import { basename, dirname, join, resolve } from 'path'
+import { mkdirSync, promises as fs } from 'fs'
+import { basename, dirname, join, resolve, sep } from 'path'
 import type { ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
 import { download } from '../catalog/art'
@@ -11,6 +11,7 @@ import { scanEpic } from '../platforms/epic'
 import { scanSteam, steamArt } from '../platforms/steam'
 import { igdbCredentials, type StoredSettings } from '../settings'
 import type { Catalog } from './catalog'
+import { INSTALL_DIR, runInstaller } from './installer'
 import type { Runner } from './runner'
 import { scanRoot } from './scanner'
 
@@ -75,7 +76,7 @@ export class Library {
   }
 
   async uninstall(gameId: number): Promise<void> {
-    const { repo, runner, settings, qbWeb } = this.d
+    const { repo, runner, settings } = this.d
     const game = repo.get(gameId)
     const root = settings.gamesRoot
     if (!game?.folder) throw new Error('Jogo não instalado')
@@ -86,20 +87,11 @@ export class Library {
       return
     }
     if (game.source !== 'folder') throw new Error('Desinstale pela Epic Games Launcher')
-    // Only ever a direct subfolder of the games folder: never the root itself or anything outside it.
-    const norm = (p: string) =>
-      resolve(p)
-        .replace(/[\\/]+$/, '')
-        .toLowerCase()
-    if (!root || norm(dirname(game.folder)) !== norm(root)) {
+    if (!root || !isDirectChild(game.folder, root)) {
       throw new Error('Por segurança, só jogos dentro da pasta de jogos podem ser desinstalados pelo app')
     }
     try {
-      // Drop its torrent first, or qBittorrent keeps it in error ("missing files").
-      const hashes = (await qbWeb.torrents().catch(() => []))
-        .filter((t) => gameFolderOf(t, root) === basename(game.folder!))
-        .map((t) => t.hash)
-      await qbWeb.remove(hashes, false).catch(() => {})
+      await this.dropTorrents(game.folder)
       await shell.trashItem(game.folder)
     } catch (err) {
       throw new Error(`Não deu pra mover a pasta pra Lixeira: ${err instanceof Error ? err.message : String(err)}`)
@@ -108,7 +100,76 @@ export class Library {
     this.d.onDownloadsChanged()
   }
 
+  /** Drops the folder's torrents, or qBittorrent keeps them in error ("missing files"). */
+  private async dropTorrents(folder: string): Promise<void> {
+    const { settings, qbWeb } = this.d
+    const root = settings.gamesRoot
+    if (!root) return
+    const hashes = (await qbWeb.torrents().catch(() => []))
+      .filter((t) => gameFolderOf(t, root) === basename(folder))
+      .map((t) => t.hash)
+    await qbWeb.remove(hashes, false).catch(() => {})
+  }
+
+  private installable(gameId: number): { folder: string; installer: string } {
+    const game = this.d.repo.get(gameId)
+    const root = this.d.settings.gamesRoot
+    if (!game?.folder || !game.installerPath) throw new Error('Nenhum instalador encontrado')
+    if (!root || !isDirectChild(game.folder, root)) throw new Error('O jogo precisa estar na pasta de jogos')
+    return { folder: game.folder, installer: game.installerPath }
+  }
+
+  /** Runs the repack's setup into <game folder>/Jogo, then rescans so the installed exe shows up. */
+  async install(gameId: number): Promise<void> {
+    const { folder, installer } = this.installable(gameId)
+    if (this.installing.has(gameId)) throw new Error('A instalação já está aberta')
+    this.installing.add(gameId)
+    try {
+      await runInstaller(installer, join(folder, INSTALL_DIR))
+    } finally {
+      this.installing.delete(gameId)
+    }
+    await this.rescan()
+    if (!this.d.repo.get(gameId)?.exePath) {
+      throw new Error(`Não achei o jogo instalado. Instale dentro de ${join(folder, INSTALL_DIR)}`)
+    }
+  }
+
+  private installing = new Set<number>()
+
+  /**
+   * After installing: the repack files (setup, .bin archives…) go to the Recycle Bin and its torrent leaves
+   * qBittorrent; only the Jogo subfolder stays.
+   */
+  async cleanInstaller(gameId: number): Promise<void> {
+    const { folder } = this.installable(gameId)
+    const game = this.d.repo.get(gameId)!
+    const installed = join(folder, INSTALL_DIR)
+    if (!game.exePath || !isInside(game.exePath, installed)) {
+      throw new Error(`O jogo não está instalado em ${installed}; apague o instalador manualmente`)
+    }
+    if (this.d.runner.current() === gameId) throw new Error('Feche o jogo antes')
+    await this.dropTorrents(folder)
+    const entries = await fs.readdir(folder)
+    for (const name of entries) {
+      if (name.toLowerCase() === INSTALL_DIR.toLowerCase()) continue
+      await shell.trashItem(join(folder, name))
+    }
+    await this.rescan()
+    this.d.onDownloadsChanged()
+  }
+
   remove(gameId: number): void {
     if (!this.d.repo.removeCatalog(gameId)) throw new Error('Só jogos não instalados podem ser removidos')
   }
 }
+
+const norm = (p: string) =>
+  resolve(p)
+    .replace(/[\\/]+$/, '')
+    .toLowerCase()
+
+/** Only ever a direct subfolder of the games folder: never the root itself or anything outside it. */
+export const isDirectChild = (folder: string, root: string) => norm(dirname(folder)) === norm(root)
+
+const isInside = (file: string, dir: string) => norm(file).startsWith(norm(dir) + sep)

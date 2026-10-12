@@ -11,6 +11,7 @@ const scanned = (name: string): ScannedGame => ({
   folder: join('/games', name),
   title: titleFromFolder(name), // what the scanner derives
   exePath: join('/games', name, 'game.exe'),
+  installerPath: null,
   coverPath: null
 })
 const meta = (title: string) => ({
