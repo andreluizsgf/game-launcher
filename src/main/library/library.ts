@@ -7,9 +7,9 @@ import { download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
 import { gameFolderOf } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
-import { scanEpic } from '../platforms/epic'
-import { scanSteam, steamArt } from '../platforms/steam'
-import { igdbCredentials, type StoredSettings } from '../settings'
+import { ownedEpicGames, scanEpic } from '../platforms/epic'
+import { ownedSteamGames, scanSteam, steamArt, type PlatformGame } from '../platforms/steam'
+import { decrypt, igdbCredentials, type StoredSettings } from '../settings'
 import type { Catalog } from './catalog'
 import { INSTALL_DIR, runInstaller } from './installer'
 import type { Runner } from './runner'
@@ -24,6 +24,8 @@ interface Deps {
   artDir: string
   /** Something on disk changed (e.g. a torrent was dropped): re-poll downloads. */
   onDownloadsChanged(): void
+  /** The list changed outside a rescan the renderer awaited (e.g. artwork arrived). */
+  onChanged(): void
 }
 
 /** What's installed: the games folder plus the Steam/Epic libraries, and taking games off disk. */
@@ -39,33 +41,69 @@ export class Library {
     return result
   }
 
-  /** Store libraries: installed Steam/Epic games, with artwork for the ones that just showed up. */
+  /**
+   * Store libraries: installed Steam/Epic games plus, when the account list is available, the ones owned
+   * but not installed. Artwork for new rows downloads in the background (a first sync can be hundreds).
+   */
   private async syncPlatforms(): Promise<void> {
-    const { repo, settings, catalog, artDir } = this.d
-    const steam = settings.steamLibrary ? await scanSteam() : []
-    for (const id of repo.syncPlatform('steam', steam)) {
-      const g = repo.get(id)
-      if (!g?.externalId) continue
-      const art = steamArt(g.externalId)
-      mkdirSync(artDir, { recursive: true })
-      const [cover, wide] = await Promise.all([
-        download(art.cover, join(artDir, `steam-${g.externalId}-cover.jpg`)),
-        download(art.art, join(artDir, `steam-${g.externalId}-art.jpg`))
-      ])
-      repo.setArt(id, cover, wide)
+    const { repo, settings } = this.d
+    const steamKey = decrypt(settings.steamApiKeyEnc)
+    const steamOwned = !settings.steamLibrary || !steamKey ? [] : await ownedSteamGames(steamKey).catch(warn)
+    const steam = settings.steamLibrary ? merge(await scanSteam(), steamOwned) : []
+    const steamNew = repo.syncPlatform('steam', steam, steamOwned !== null)
+
+    const epicOwned = settings.epicLibrary ? ownedEpicGames() : []
+    const epic = settings.epicLibrary ? merge(scanEpic(), epicOwned) : []
+    const epicNew = repo.syncPlatform('epic', epic, epicOwned !== null)
+
+    const art = new Map((epicOwned ?? []).map((g) => [g.externalId, g.art]))
+    if (steamNew.length || epicNew.length) {
+      void this.fetchArt(steamNew, epicNew, art).then(() => this.d.onChanged())
     }
-    // Epic has no public art CDN: link to the IGDB entry with the same title, when IGDB is set up.
-    const epic = settings.epicLibrary ? scanEpic() : []
-    for (const id of repo.syncPlatform('epic', epic)) {
+  }
+
+  private async fetchArt(
+    steamIds: number[],
+    epicIds: number[],
+    epicArt: Map<string, PlatformGame['art']>
+  ): Promise<void> {
+    const { repo, settings, catalog, artDir } = this.d
+    mkdirSync(artDir, { recursive: true })
+    const save = async (id: number, prefix: string, cover: string | null, wide: string | null) => {
+      const [c, w] = await Promise.all([
+        cover ? download(cover, join(artDir, `${prefix}-cover.jpg`)) : null,
+        wide ? download(wide, join(artDir, `${prefix}-art.jpg`)) : null
+      ])
+      repo.setArt(id, c, w)
+    }
+    const steamJobs = steamIds.map((id) => async () => {
       const g = repo.get(id)
-      if (!g || !igdbCredentials(settings)) continue
+      if (!g?.externalId) return
+      const art = steamArt(g.externalId)
+      await save(id, `steam-${g.externalId}`, art.cover, art.art)
+    })
+    const epicJobs = epicIds.map((id) => async () => {
+      const g = repo.get(id)
+      if (!g?.externalId) return
+      const art = epicArt.get(g.externalId)
+      if (art) await save(id, `epic-${g.externalId.replace(/[^\w-]/g, '_')}`, art.cover, art.wide)
+      // Installed ones also get catalog data (summary, genres) from IGDB, when it's set up.
+      if (!g.folder || !igdbCredentials(settings)) return
       try {
         const hit = (await catalog.igdb.search(g.title)).find((h) => titlesMatch(h.name, g.title))
         if (hit && !repo.byIgdbId(hit.id)) repo.applyCatalog(id, await catalog.toMeta(hit))
       } catch {
         // Offline / IGDB down: it stays with its Epic name; "Identificar jogo" works later.
       }
-    }
+    })
+    await pool([...steamJobs, ...epicJobs], 6)
+  }
+
+  /** Not-installed Steam/Epic game: the store's install dialog. */
+  async storeInstall(gameId: number): Promise<void> {
+    const game = this.d.repo.get(gameId)
+    if (!game || game.folder || game.source === 'folder' || !game.launchUri) throw new Error('Nada pra instalar')
+    await shell.openExternal(game.launchUri)
   }
 
   async launch(gameId: number): Promise<void> {
@@ -173,3 +211,23 @@ const norm = (p: string) =>
 export const isDirectChild = (folder: string, root: string) => norm(dirname(folder)) === norm(root)
 
 const isInside = (file: string, dir: string) => norm(file).startsWith(norm(dir) + sep)
+
+/** Installed games win over the same id in the owned list. */
+function merge(installed: PlatformGame[], owned: PlatformGame[] | null): PlatformGame[] {
+  const ids = new Set(installed.map((g) => g.externalId))
+  return [...installed, ...(owned ?? []).filter((g) => !ids.has(g.externalId))]
+}
+
+function warn(err: unknown): null {
+  console.warn('[platforms] owned games unavailable', err)
+  return null
+}
+
+/** Runs jobs with at most `size` at a time. */
+async function pool(jobs: Array<() => Promise<void>>, size: number): Promise<void> {
+  let next = 0
+  const worker = async () => {
+    while (next < jobs.length) await jobs[next++]().catch(() => {})
+  }
+  await Promise.all(Array.from({ length: Math.min(size, jobs.length) }, worker))
+}

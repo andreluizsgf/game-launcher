@@ -173,6 +173,10 @@ export function App() {
             notify('Instalador na Lixeira')
             await lib.reload(g.id)
           }}
+          onStoreInstall={async (g) => {
+            const res = await window.api.storeInstall(g.id)
+            if (!res.ok) notify(res.error)
+          }}
           onIdentify={(g) => setOverlay({ kind: 'search', mode: { kind: 'link', game: g } })}
           onRemove={async (g) => {
             const res = await window.api.removeGame(g.id)

@@ -28,6 +28,8 @@ interface Props {
   onInstall(g: Game): void
   /** Deletes the repack files after installing. */
   onCleanInstaller(g: Game): void
+  /** Owned on Steam/Epic, not installed: the store's install dialog. */
+  onStoreInstall(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
@@ -38,6 +40,7 @@ type Item = {
     | 'play'
     | 'install'
     | 'cleanInstaller'
+    | 'storeInstall'
     | 'resume'
     | 'stop'
     | 'achievements'
@@ -53,7 +56,7 @@ type Item = {
 
 export function GameDetail(props: Props) {
   const { game, running, installing, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop } = props
-  const { onUninstall, onInstall, onCleanInstaller, onIdentify, onRemove, onClose } = props
+  const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onIdentify, onRemove, onClose } = props
   // Destructive items need a second press.
   const [confirm, setConfirm] = useState<'stop' | 'uninstall' | 'cleanInstaller' | null>(null)
   const [achievements, setAchievements] = useState<GameAchievements | null>(null)
@@ -66,6 +69,9 @@ export function GameDetail(props: Props) {
   const playable = !!(game.exePath || game.launchUri)
   // A repack: the download is a setup.exe that still has to be run.
   const needsInstall = installed && !playable && !!game.installerPath
+  // In the Steam/Epic account but not on this PC.
+  const store = game.source === 'steam' ? 'Steam' : game.source === 'epic' ? 'Epic Games' : null
+  const storeOwned = !game.folder && !!store
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
@@ -88,7 +94,9 @@ export function GameDetail(props: Props) {
         ? [{ id: 'install', label: installing ? 'Instalando…' : 'Instalar', disabled: installing } as Item]
         : installed
           ? [{ id: 'play', label: 'Jogar', disabled: !playable } as Item]
-          : []),
+          : storeOwned
+            ? [{ id: 'storeInstall', label: `Instalar na ${store}` } as Item]
+            : []),
     ...(achievements
       ? [{ id: 'achievements', label: `Conquistas · ${achievements.unlocked}/${achievements.total}` } as Item]
       : []),
@@ -118,7 +126,7 @@ export function GameDetail(props: Props) {
           } as Item
         ]
       : []),
-    ...(!game.folder ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
+    ...(!game.folder && !storeOwned ? [{ id: 'remove', label: 'Remover da lista' } as Item] : []),
     { id: 'back', label: 'Voltar' }
   ]
   const [sel, setSel] = useState(0)
@@ -127,6 +135,7 @@ export function GameDetail(props: Props) {
     if (it.disabled) return
     if (it.id === 'play') onLaunch(game)
     else if (it.id === 'install') onInstall(game)
+    else if (it.id === 'storeInstall') onStoreInstall(game)
     else if (it.id === 'resume') onResume()
     else if (it.id === 'stop' || it.id === 'uninstall' || it.id === 'cleanInstaller') {
       if (confirm !== it.id) return setConfirm(it.id)
@@ -181,6 +190,11 @@ export function GameDetail(props: Props) {
                 <dd>{formatDate(game.addedAt)}</dd>
               </div>
             </dl>
+          ) : storeOwned ? (
+            <p className="detail-note">
+              Na sua conta {store}, não instalado neste PC. <b>Instalar na {store}</b> abre a instalação por lá; ele
+              aparece aqui quando terminar.
+            </p>
           ) : (
             <p className="detail-note">
               Não instalado. Coloque o jogo numa pasta chamada <b>{game.title.split(':')[0]}</b>

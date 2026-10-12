@@ -100,4 +100,37 @@ describe('GamesRepo store games', () => {
     expect(r.list()).toHaveLength(1)
     expect(r.get(wish.id)).toMatchObject({ source: 'steam', externalId: '400', igdbId: 42 })
   })
+
+  const owned = (id: string, title: string) => ({
+    ...steam(id, title),
+    folder: null,
+    launchUri: `steam://install/${id}`
+  })
+
+  it('keeps owned games as not installed, and installs them in place', () => {
+    const r = repo()
+    const [id] = r.syncPlatform('steam', [owned('620', 'Portal 2')])
+    expect(r.get(id)).toMatchObject({ folder: null, launchUri: 'steam://install/620' })
+    r.syncPlatform('steam', [steam('620', 'Portal 2')])
+    expect(r.get(id)).toMatchObject({ folder: join('/steam', 'Portal 2'), launchUri: 'steam://rungameid/620' })
+    // Uninstalled but still owned: back to not installed, same row.
+    r.syncPlatform('steam', [owned('620', 'Portal 2')])
+    expect(r.get(id)).toMatchObject({ folder: null, hidden: false })
+  })
+
+  it('keeps owned-only games when the account list is unavailable', () => {
+    const r = repo()
+    const [id] = r.syncPlatform('steam', [owned('620', 'Portal 2')])
+    r.syncPlatform('steam', [], false)
+    expect(r.get(id)?.hidden).toBe(false)
+    r.syncPlatform('steam', [], true)
+    expect(r.get(id)?.hidden).toBe(true)
+  })
+
+  it('skips owned games already installed from the games folder', () => {
+    const r = repo()
+    r.sync([scanned('Hades')])
+    expect(r.syncPlatform('steam', [owned('1145360', 'Hades')])).toHaveLength(0)
+    expect(r.list()).toHaveLength(1)
+  })
 })

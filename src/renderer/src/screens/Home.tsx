@@ -147,7 +147,9 @@ export function Home(props: Props) {
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
               disabled={
                 runningId !== game.id &&
-                (!game.folder || !(game.exePath || game.launchUri || game.installerPath) || !!dl)
+                (!(game.folder || game.source !== 'folder') ||
+                  !(game.exePath || game.launchUri || game.installerPath) ||
+                  !!dl)
               }
               onClick={() => onLaunch(game)}
             >
@@ -156,7 +158,9 @@ export function Home(props: Props) {
                 : dl
                   ? `Baixando ${Math.floor(dl.progress * 100)}%`
                   : !game.folder
-                    ? shelf === 'upcoming'
+                    ? game.source !== 'folder'
+                      ? `Instalar na ${game.source === 'steam' ? 'Steam' : 'Epic'}`
+                      : shelf === 'upcoming'
                       ? 'Em breve'
                       : 'Não instalado'
                     : game.exePath || game.launchUri

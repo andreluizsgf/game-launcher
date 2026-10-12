@@ -38,6 +38,8 @@ export interface Settings {
   /** Show installed games from these stores' libraries. */
   steamLibrary: boolean
   epicLibrary: boolean
+  /** With a Steam Web API key, owned games that aren't installed show up too. */
+  hasSteamApiKey: boolean
   fullscreen: boolean
   /** Start with Windows, straight into fullscreen. */
   openAtLogin: boolean
@@ -251,6 +253,8 @@ export interface LauncherApi {
   installGame(gameId: number): Promise<Result<null>>
   /** Deletes the repack files once the game is installed, keeping only the installed game. */
   cleanInstaller(gameId: number): Promise<Result<null>>
+  /** Opens Steam/Epic's install dialog for an owned game that isn't installed. */
+  storeInstall(gameId: number): Promise<Result<null>>
   getSettings(): Promise<Settings>
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>
@@ -305,6 +309,7 @@ export interface LauncherApi {
   stopGame(gameId: number): Promise<Result<null>>
   storage(): Promise<StorageInfo | null>
   setQbWebPassword(password: string): Promise<Settings>
+  setSteamApiKey(key: string): Promise<Settings>
   getDownloads(): Promise<DownloadsStatus>
   onDownloads(cb: (s: DownloadsStatus) => void): () => void
   /** Main process changed the library (download added a game, finished download rescanned). */

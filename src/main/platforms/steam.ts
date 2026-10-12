@@ -6,9 +6,12 @@ import { parseVdf, type Vdf } from './vdf'
 export interface PlatformGame {
   externalId: string
   title: string
-  folder: string
+  /** null = owned but not installed; launchUri then opens the store's install dialog. */
+  folder: string | null
   exePath: string | null
   launchUri: string
+  /** Store artwork, when the store hands it out. */
+  art?: { cover: string | null; wide: string | null }
 }
 
 /** Not games: shared runtimes Steam installs alongside them. */
@@ -90,6 +93,65 @@ export async function scanSteam(): Promise<PlatformGame[]> {
     }
   }
   return games
+}
+
+/** SteamID64 of the account last signed in on this PC (config/loginusers.vdf). */
+export function steamIdFromLoginUsers(text: string): string | null {
+  const users = parseVdf(text).users
+  if (!users || typeof users !== 'object') return null
+  const ids = Object.keys(users).filter((id) => /^\d{17}$/.test(id))
+  const recent = ids.find((id) => {
+    const u = users[id]
+    return typeof u === 'object' && u.mostrecent === '1'
+  })
+  return recent ?? ids[0] ?? null
+}
+
+export async function findSteamId(): Promise<string | null> {
+  const root = await findSteamRoot()
+  if (!root) return null
+  try {
+    return steamIdFromLoginUsers(readFileSync(join(root, 'config', 'loginusers.vdf'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+interface OwnedResponse {
+  response?: { games?: Array<{ appid: number; name?: string }> }
+}
+
+/** GetOwnedGames payload → not-installed games (installed ones come from the manifests). */
+export function parseOwnedGames(body: OwnedResponse): PlatformGame[] {
+  return (body.response?.games ?? [])
+    .filter((g) => g.name && !NOT_GAMES.test(g.name))
+    .map((g) => ({
+      externalId: String(g.appid),
+      title: g.name!,
+      folder: null,
+      exePath: null,
+      launchUri: `steam://install/${g.appid}`
+    }))
+}
+
+/**
+ * Every game on the Steam account, through the Web API (the key's owner sees their own library even
+ * when the profile is private). Throws when Steam can't be reached, so the caller keeps what it had.
+ */
+export async function ownedSteamGames(apiKey: string): Promise<PlatformGame[]> {
+  const steamId = await findSteamId()
+  if (!steamId) throw new Error('Nenhuma conta Steam encontrada neste PC')
+  const url = new URL('https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/')
+  url.search = new URLSearchParams({
+    key: apiKey,
+    steamid: steamId,
+    include_appinfo: '1',
+    include_played_free_games: '1'
+  }).toString()
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
+  if (res.status === 401 || res.status === 403) throw new Error('Steam Web API key inválida')
+  if (!res.ok) throw new Error(`Steam respondeu ${res.status}`)
+  return parseOwnedGames((await res.json()) as OwnedResponse)
 }
 
 /** Steam CDN artwork for an app id. */

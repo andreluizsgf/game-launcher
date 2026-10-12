@@ -24,6 +24,7 @@ export function registerLibrary({ repo, library, catalog, store, awn, settings, 
     }
   })
   handle('game:cleanInstaller', (gameId: number) => library.cleanInstaller(gameId))
+  handle('game:storeInstall', (gameId: number) => library.storeInstall(gameId))
 
   handle('catalog:search', (query: string) => catalog.search(query))
   handle('catalog:add', (igdbId: number) => catalog.add(igdbId))

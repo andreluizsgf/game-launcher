@@ -57,7 +57,8 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     catalog,
     qbWeb,
     artDir,
-    onDownloadsChanged: () => downloads.poke()
+    onDownloadsChanged: () => downloads.poke(),
+    onChanged: () => send('library:changed', null)
   })
 
   const telegram = new TelegramService(settings, qbWeb, {
@@ -99,4 +100,17 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
 
   downloads.start()
   updater.start()
+
+  // Back from Steam/Epic (installed or uninstalled something there): pick it up without a manual rescan.
+  let lastFocusScan = Date.now()
+  app.on('browser-window-focus', () => {
+    if (Date.now() - lastFocusScan < FOCUS_RESCAN_MS || runner.current() != null) return
+    lastFocusScan = Date.now()
+    library
+      .rescan()
+      .then(() => send('library:changed', null))
+      .catch(() => {})
+  })
 }
+
+const FOCUS_RESCAN_MS = 60_000

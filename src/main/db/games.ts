@@ -205,23 +205,37 @@ export class GamesRepo {
              hidden = 0
            WHERE id = ?`
         )
-        .run(from.folder, from.exe_path, from.exe_override, from.installer_path, from.cover_path, from.total_seconds, from.last_played_at, keepId)
+        .run(
+          from.folder,
+          from.exe_path,
+          from.exe_override,
+          from.installer_path,
+          from.cover_path,
+          from.total_seconds,
+          from.last_played_at,
+          keepId
+        )
     })()
   }
 
 
   /**
-   * Installed games of one store: known ones by external id, then a folder already in the library or a
-   * catalog (wishlist) entry with the same title, else a new row. Gone ones are hidden, keeping playtime.
-   * Returns ids of games that just got a row, for artwork.
+   * Games of one store, installed (with a folder) or only owned (folder null). Known ones by external id,
+   * then a folder already in the library or a catalog (wishlist) entry with the same title, else a new row.
+   * Gone ones are hidden, keeping playtime — except owned-only rows when `ownedKnown` is false (the account
+   * list couldn't be fetched this time). Returns ids of games that just got a row, for artwork.
    */
-  syncPlatform(source: Exclude<GameSource, 'folder'>, games: PlatformGame[]): number[] {
+  syncPlatform(source: Exclude<GameSource, 'folder'>, games: PlatformGame[], ownedKnown = true): number[] {
     const rows = this.db.prepare('SELECT * FROM games').all() as GameRow[]
     const byExt = new Map(rows.filter((r) => r.source === source && r.external_id).map((r) => [r.external_id!, r]))
     const byFolder = new Map(rows.filter((r) => r.folder).map((r) => [r.folder!.toLowerCase(), r]))
     const pending = rows.filter((r) => !r.folder)
+    // A game already installed from the games folder doesn't need a second, store-only card.
+    const inGamesFolder = rows.filter((r) => r.source === 'folder' && r.folder && !r.hidden)
     const update = this.db.prepare(
-      'UPDATE games SET folder = ?, exe_path = COALESCE(?, exe_path), launch_uri = ?, hidden = 0 WHERE id = ?'
+      `UPDATE games SET folder = ?, exe_path = CASE WHEN ? IS NULL THEN NULL ELSE COALESCE(?, exe_path) END,
+         launch_uri = ?, hidden = 0
+       WHERE id = ?`
     )
     const attach = this.db.prepare(
       `UPDATE games SET source = ?, external_id = ?, folder = ?, exe_path = COALESCE(?, exe_path), launch_uri = ?, hidden = 0
@@ -240,10 +254,11 @@ export class GamesRepo {
         seen.add(g.externalId)
         const known = byExt.get(g.externalId)
         if (known) {
-          update.run(g.folder, g.exePath, g.launchUri, known.id)
+          update.run(g.folder, g.folder, g.exePath, g.launchUri, known.id)
           continue
         }
-        const same = byFolder.get(g.folder.toLowerCase())
+        if (!g.folder && inGamesFolder.some((r) => titlesMatch(r.title, g.title))) continue
+        const same = g.folder ? byFolder.get(g.folder.toLowerCase()) : undefined
         const idx = same ? -1 : pending.findIndex((p) => titlesMatch(p.title, g.title))
         const target = same ?? (idx >= 0 ? pending.splice(idx, 1)[0] : null)
         if (target) attach.run(source, g.externalId, g.folder, g.exePath, g.launchUri, target.id)
@@ -252,7 +267,12 @@ export class GamesRepo {
           added.push(Number(res.lastInsertRowid))
         }
       }
-      for (const [id, row] of byExt) if (!seen.has(id) && !row.hidden) hide.run(row.id)
+      for (const [id, row] of byExt) {
+        if (seen.has(id) || row.hidden) continue
+        // Owned-only and the account list couldn't be fetched: can't tell it's gone.
+        if (!ownedKnown && !row.folder) continue
+        hide.run(row.id)
+      }
     })()
     return added
   }

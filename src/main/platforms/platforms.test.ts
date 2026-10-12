@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
-import { parseEpicItem } from './epic'
-import { libraryPaths, parseAppManifest } from './steam'
+import { parseCatCache, parseEpicItem } from './epic'
+import { libraryPaths, parseAppManifest, parseOwnedGames, steamIdFromLoginUsers } from './steam'
 import { parseVdf } from './vdf'
 
 describe('parseVdf', () => {
@@ -59,5 +59,79 @@ describe('epic', () => {
     expect(parseEpicItem(item({ AppName: 'DillDLC' }))).toBeNull()
     expect(parseEpicItem(item({ AppCategories: ['addons'] }))).toBeNull()
     expect(parseEpicItem(item({ bIsIncompleteInstall: true }))).toBeNull()
+  })
+})
+
+describe('steam account', () => {
+  it('picks the most recent login', () => {
+    const vdf = `"users" {
+      "76561190000000001" { "AccountName" "a" "MostRecent" "0" }
+      "76561190000000002" { "AccountName" "b" "MostRecent" "1" }
+    }`
+    expect(steamIdFromLoginUsers(vdf)).toBe('76561190000000002')
+    expect(steamIdFromLoginUsers('"users" {}')).toBeNull()
+  })
+
+  it('turns owned games into install links, dropping runtimes', () => {
+    const games = parseOwnedGames({
+      response: {
+        games: [
+          { appid: 620, name: 'Portal 2' },
+          { appid: 228980, name: 'Steamworks Common Redistributables' }
+        ]
+      }
+    })
+    expect(games).toEqual([
+      { externalId: '620', title: 'Portal 2', folder: null, exePath: null, launchUri: 'steam://install/620' }
+    ])
+  })
+})
+
+describe('epic catalog cache', () => {
+  const items = [
+    {
+      id: 'item1',
+      namespace: 'ns1',
+      title: 'Control',
+      categories: [{ path: 'games' }, { path: 'applications' }],
+      keyImages: [
+        { type: 'DieselGameBoxTall', url: 'https://cdn/tall.jpg' },
+        { type: 'DieselGameBox', url: 'https://cdn/wide.jpg' }
+      ],
+      releaseInfo: [{ appId: 'Calluna', platform: ['Windows'] }]
+    },
+    {
+      id: 'dlc1',
+      namespace: 'ns1',
+      title: 'Control - AWE',
+      categories: [{ path: 'addons' }],
+      releaseInfo: [{ appId: 'CallunaAwe' }],
+      mainGameItem: { id: 'item1' }
+    },
+    {
+      id: 'mac',
+      namespace: 'ns2',
+      title: 'Mac only',
+      categories: [{ path: 'games' }],
+      releaseInfo: [{ appId: 'M', platform: ['Mac'] }]
+    }
+  ]
+
+  it('lists base games with their art from the base64 cache', () => {
+    const games = parseCatCache(Buffer.from(JSON.stringify(items)).toString('base64'))
+    expect(games).toEqual([
+      {
+        externalId: 'ns1:item1:Calluna',
+        title: 'Control',
+        folder: null,
+        exePath: null,
+        launchUri: 'com.epicgames.launcher://apps/ns1%3Aitem1%3ACalluna?action=install',
+        art: { cover: 'https://cdn/tall.jpg', wide: 'https://cdn/wide.jpg' }
+      }
+    ])
+  })
+
+  it('survives garbage', () => {
+    expect(parseCatCache('not base64 json')).toEqual([])
   })
 })

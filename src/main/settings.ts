@@ -9,6 +9,8 @@ export interface StoredSettings {
   gamesRoot: string | null
   steamLibrary: boolean
   epicLibrary: boolean
+  /** Steam Web API key: lists the account's games that aren't installed. */
+  steamApiKeyEnc: string | null
   fullscreen: boolean
   openAtLogin: boolean
   igdbClientId: string | null
@@ -29,6 +31,7 @@ const DEFAULTS: StoredSettings = {
   gamesRoot: null,
   steamLibrary: true,
   epicLibrary: true,
+  steamApiKeyEnc: null,
   fullscreen: false,
   openAtLogin: false,
   igdbClientId: null,
@@ -66,6 +69,7 @@ export function publicSettings(s: StoredSettings): Settings {
     gamesRoot: s.gamesRoot,
     steamLibrary: s.steamLibrary,
     epicLibrary: s.epicLibrary,
+    hasSteamApiKey: !!s.steamApiKeyEnc,
     fullscreen: s.fullscreen,
     openAtLogin: s.openAtLogin,
     igdbClientId: s.igdbClientId,

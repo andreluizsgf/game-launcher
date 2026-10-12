@@ -37,6 +37,7 @@ type TgField =
   | 'qbUrl'
   | 'qbUser'
   | 'qbPass'
+  | 'steamKey'
 
 const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean }> = {
   tgApiId: { title: 'Telegram API ID', hint: 'Número do app criado em my.telegram.org → API development tools.' },
@@ -48,7 +49,13 @@ const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean 
   tgPassword: { title: 'Senha de verificação em duas etapas', hint: 'Sua conta tem 2FA ativado.', secret: true },
   qbUrl: { title: 'Endereço da Interface Web', hint: 'Padrão: http://localhost:8080' },
   qbUser: { title: 'Usuário da Interface Web', hint: 'Deixe vazio se ligou "Ignorar autenticação para clientes no localhost".' },
-  qbPass: { title: 'Senha da Interface Web', hint: 'Fica criptografada no cofre do sistema.', secret: true }
+  qbPass: { title: 'Senha da Interface Web', hint: 'Fica criptografada no cofre do sistema.', secret: true },
+  steamKey: {
+    title: 'Steam Web API key',
+    hint:
+      'Gere em steamcommunity.com/dev/apikey (domínio: localhost). Mostra os jogos da conta que não estão instalados.',
+    secret: true
+  }
 }
 
 export function Settings(props: Props) {
@@ -84,6 +91,11 @@ export function Settings(props: Props) {
     if (field === 'qbUrl') return onSettings(await window.api.setSettings({ qbWebUrl: v }))
     if (field === 'qbUser') return onSettings(await window.api.setSettings({ qbWebUser: v }))
     if (field === 'qbPass') return onSettings(await window.api.setQbWebPassword(v))
+    if (field === 'steamKey') {
+      notify('Buscando sua biblioteca Steam…')
+      onSettings(await window.api.setSteamApiKey(v))
+      return notify(v.trim() ? 'Biblioteca Steam atualizada' : 'Key removida')
+    }
     onSettings(await window.api.setSettings({ telegramTemplate: v }))
   }
 
@@ -111,15 +123,24 @@ export function Settings(props: Props) {
     { label: 'Reescanear biblioteca', value: '', run: onRescan },
     {
       label: 'Biblioteca Steam',
-      value: settings.steamLibrary ? 'Mostrando jogos instalados' : 'Desligada',
+      value: !settings.steamLibrary
+        ? 'Desligada'
+        : settings.hasSteamApiKey
+          ? 'Instalados e não instalados'
+          : 'Mostrando jogos instalados',
       run: async () => {
         onSettings(await window.api.setSettings({ steamLibrary: !settings.steamLibrary }))
         onRescan()
       }
     },
     {
+      label: 'Steam Web API key',
+      value: settings.hasSteamApiKey ? '••••••••' : 'Não definida — só jogos instalados',
+      run: () => setEditing('steamKey')
+    },
+    {
       label: 'Biblioteca Epic Games',
-      value: settings.epicLibrary ? 'Mostrando jogos instalados' : 'Desligada',
+      value: settings.epicLibrary ? 'Instalados e não instalados' : 'Desligada',
       run: async () => {
         onSettings(await window.api.setSettings({ epicLibrary: !settings.epicLibrary }))
         onRescan()

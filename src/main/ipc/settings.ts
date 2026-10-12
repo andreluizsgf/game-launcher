@@ -61,6 +61,13 @@ export function registerSettings({ settings, downloads, telegram, library, getWi
     return save()
   })
 
+  ipcMain.handle('settings:setSteamApiKey', async (_e, key: string) => {
+    settings.steamApiKeyEnc = encrypt(key)
+    saveSettings(settings)
+    await library.rescan()
+    return pub()
+  })
+
   ipcMain.handle('settings:pickRoot', async () => {
     const folder = await pick({ properties: ['openDirectory'], title: 'Pasta de jogos' })
     if (!folder) return null
