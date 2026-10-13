@@ -1,0 +1,135 @@
+# Game Launcher
+
+Launcher estilo console (PS5) para Windows. Junta numa tela só os jogos da sua pasta de jogos, da Steam e da Epic, e se controla inteiro pelo DualSense (ou teclado/mouse).
+
+- Biblioteca com capas, ficha e tempo de jogo (catálogo do IGDB)
+- Steam e Epic: jogos instalados e os da sua conta que não estão instalados
+- Busca de torrents pelo Telegram, download direto no qBittorrent pra pasta certa, com progresso no app
+- Repacks (setup.exe): instala e depois apaga o instalador
+- Overlay por cima do jogo (botão PS) pra voltar ao launcher ou fechar o jogo
+- Conquistas (via Achievement Watcher Next)
+- Suspender, reiniciar e desligar o PC pelo controle
+- Atualiza sozinho
+
+---
+
+## 1. Instalar
+
+1. Baixe o **`Game-Launcher-Setup-x.y.z.exe`** da [última release](https://github.com/andreluizsgf/game-launcher-releases/releases/latest).
+2. Rode o instalador. O Windows pode avisar "O Windows protegeu o computador" (o app não é assinado): **Mais informações → Executar assim mesmo**.
+3. Pronto. O app abre e passa a se atualizar sozinho: quando sai versão nova ele baixa em segundo plano e instala ao reiniciar (ou em **Configurações → Versão → verificar agora**).
+
+> Existe também o `Game-Launcher-Portable-x.y.z.exe`, que roda sem instalar — mas **não se atualiza sozinho**. Prefira o instalador.
+
+## 2. Primeira configuração
+
+Tudo fica em **Configurações** (tecla `O` ou botão **OPTIONS**). Só o primeiro passo é obrigatório; o resto liga funções extras.
+
+### Pasta de jogos (obrigatório)
+
+**Configurações → Pasta de jogos** e escolha a pasta onde ficam seus jogos, ex.: `D:\Games`.
+
+Cada subpasta direta é um jogo:
+
+```
+D:\Games\
+  Hades\                 → "Hades"
+  The Witcher 3\         → "The Witcher 3"
+  Control [FitGirl]\     → repack: aparece com "Instalar"
+```
+
+O executável é achado sozinho (até 4 níveis de pasta). Jogos novos aparecem ao abrir o app, ao terminar um download ou em **Reescanear biblioteca**.
+
+### Capas e fichas — IGDB (recomendado)
+
+Sem isso os jogos aparecem só com as iniciais e a aba **Loja** fica vazia.
+
+1. Entre em [dev.twitch.tv/console](https://dev.twitch.tv/console) com uma conta Twitch (precisa ter 2FA ligado).
+2. **Register Your Application**: nome qualquer, OAuth Redirect URL `http://localhost`, categoria *Application Integration*, tipo *Confidential*.
+3. Abra o app criado → copie o **Client ID** e gere um **Client Secret**.
+4. No launcher: **IGDB Client ID** e **IGDB Client Secret** (dá pra colar com `Ctrl+V`).
+
+Depois, no detalhe de cada jogo, **Identificar jogo** liga ele à ficha certa (capa, resumo, gêneros).
+
+### Steam e Epic
+
+- **Jogos instalados**: já vêm ligados. Dá pra desligar em **Biblioteca Steam** / **Biblioteca Epic Games**.
+- **Jogos da conta que não estão instalados**:
+  - **Epic**: automático (lido do launcher da Epic; ele precisa ter sido aberto logado ao menos uma vez).
+  - **Steam**: precisa de uma Web API key. Gere em [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (domínio: `localhost`) e cole em **Steam Web API key**. A conta usada é a última que entrou na Steam neste PC.
+
+  Eles aparecem na prateleira **Na biblioteca** com o botão **Instalar na Steam/Epic**.
+
+### Downloads — qBittorrent
+
+1. Instale o [qBittorrent](https://www.qbittorrent.org/download).
+2. No qBittorrent: **Ferramentas → Opções → Interface Web**:
+   - marque **Interface Web (Controle remoto)** (porta padrão `8080`);
+   - marque **Ignorar autenticação para clientes no localhost** — ou anote usuário e senha.
+3. No launcher, se você não marcou o "ignorar autenticação": **qBittorrent usuário** e **qBittorrent senha**. A linha **qBittorrent Interface Web** mostra se conectou.
+4. Se o launcher não achar o qBittorrent sozinho, aponte o `.exe` em **qBittorrent**.
+
+Com isso os torrents vão direto pra `<pasta de jogos>\<nome do jogo>`, o progresso aparece no app e o jogo entra na biblioteca quando termina. Sem a Interface Web o app ainda abre o qBittorrent, mas sem progresso.
+
+### Busca de torrents — Telegram (opcional)
+
+Manda o nome do jogo pra um bot/canal do Telegram e mostra as respostas (links, torrents, comandos `/download…`) dentro do app.
+
+1. Em [my.telegram.org](https://my.telegram.org) → **API development tools**, crie um app e copie **api_id** e **api_hash**.
+2. No launcher: **Telegram API ID**, **Telegram API Hash**, **Telegram canal / bot** (`@usuario` ou link `t.me/...`).
+3. **Telegram mensagem**: o texto enviado, `{title}` vira o nome do jogo (ex.: `/search {title}`).
+4. **Telegram conta → Entrar**: telefone com DDI (`+55…`), depois o código que chega no Telegram (e a senha de 2 etapas, se tiver).
+
+No detalhe de um jogo, botão **Telegram**. A mensagem só é enviada quando você aperta.
+
+### Conquistas (opcional)
+
+Instale o [Achievement Watcher Next](https://github.com/Shirowwww/Achievement-Watcher-Next) e deixe ele escanear seus jogos. O launcher lê o que ele encontrou e mostra **Conquistas · x/y** no detalhe do jogo. Nada a configurar.
+
+### Abrir junto com o Windows
+
+**Abrir ao ligar o PC** → o launcher abre em tela cheia no login. **Tela cheia** liga/desliga a tela cheia normal.
+
+## 3. Controle
+
+DualSense por **USB ou Bluetooth** (pareie pelo Windows: segure **PS + Create** até piscar → *Adicionar dispositivo Bluetooth*). Pode conectar com o app já aberto. Outros controles funcionam pelo modo padrão de gamepad.
+
+| Ação | DualSense | Teclado |
+|---|---|---|
+| Mover | Direcional / analógico | Setas |
+| Selecionar | ✕ | `Enter` |
+| Voltar | ○ | `Esc` |
+| Detalhes do jogo | △ | `T` |
+| Adicionar jogo (busca) | □ | `S` |
+| Configurações | OPTIONS | `O` |
+| Trocar aba / prateleira | L1 / R1 | `Q` / `E` |
+| Overlay / menu de energia | PS | `Ctrl+Shift+G` (durante o jogo) |
+
+O botão **PS**: com um jogo aberto, mostra o launcher por cima (dá pra voltar ao jogo ou fechá-lo); na tela inicial, abre o menu de energia (suspender, reiniciar, desligar, fechar o app); em outras telas, volta pro início.
+
+## 4. Problemas comuns
+
+| Sintoma | O que fazer |
+|---|---|
+| Jogo não aparece | Ele precisa estar numa subpasta direta da pasta de jogos. **Reescanear biblioteca**. |
+| "Sem executável" | O exe está a mais de 4 pastas de profundidade, ou o nome parece de instalador/redist. |
+| Download não aparece no app | Confira a Interface Web do qBittorrent (porta, usuário/senha). **qBittorrent Interface Web** em Configurações diz se conectou. |
+| Repack instalou em outro lugar | Reinstale escolhendo `<pasta do jogo>\Jogo`, ou mova a pasta instalada pra dentro da pasta de jogos. |
+| Controle conectado mas não mexe | Aperte qualquer botão; se continuar, desconecte e conecte de novo (o app procura o controle a cada 3 s). |
+| Jogo da Steam/Epic não volta pro launcher ao fechar | Espere ~10 s; o app confere os processos a cada 5 s. |
+| Não aparece atualização | **Configurações → Versão → verificar agora** mostra o erro, se houver. |
+
+## 5. Desenvolvimento
+
+Electron + React + TypeScript. Detalhes da stack, estrutura e fluxo de release: veja os comentários em `src/` e `.github/workflows/release.yml`.
+
+```bash
+npm ci                 # Node 22 (.nvmrc)
+npm run dev            # app em modo dev
+npm run dev:fixtures   # dev com uma pasta de jogos falsa
+npm run typecheck
+npm test               # testes unitários
+npm run test:db        # testes do banco (rodam dentro do Electron)
+```
+
+**Release:** `npm version X.Y.Z --no-git-tag-version` → commit → `git tag vX.Y.Z` → push do commit e da tag. O CI (Windows) testa, gera instalador + portable e publica em [game-launcher-releases](https://github.com/andreluizsgf/game-launcher-releases); os apps instalados se atualizam sozinhos.
