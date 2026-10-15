@@ -444,3 +444,44 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .power-item.focused { background: var(--fg); color: #0b0d12; transform: scale(1.06); }
 .power-icon { font-size: 40px; line-height: 1; }
 .power-menu .detail-note { margin: 24px auto 0; }
+
+/* Library grid (every shelf but Instalados), PS5 Game Library style */
+.home.grid-mode { display: flex; flex-direction: column; }
+.library-grid { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 18px; }
+.grid-filters { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; }
+.grid-chip {
+  display: flex; align-items: baseline; gap: 8px; padding: 7px 14px; border-radius: 10px; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); color: var(--fg); font-size: 15px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: background 150ms, box-shadow 150ms;
+}
+.grid-chip-label { color: var(--fg-dim); font-size: 13px; }
+.grid-chip.on { background: rgba(47, 124, 246, 0.35); }
+.grid-chip.focused { box-shadow: 0 0 0 3px var(--focus-ring); background: rgba(255, 255, 255, 0.16); }
+.grid-count { margin-left: auto; color: var(--fg-dim); font-size: 14px; }
+.grid-empty { color: var(--fg-dim); font-size: 20px; margin-top: 40px; }
+/* Room at the bottom for the button hints; padding keeps the focus ring and its shadow unclipped. */
+.grid-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; margin: 0 -20px; padding: 10px 20px 110px;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 90px), transparent 100%);
+}
+.grid-scroll::-webkit-scrollbar { display: none; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 26px 18px; }
+.grid-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.grid-cover {
+  position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); transition: transform 160ms var(--ease), box-shadow 160ms;
+}
+.grid-item.focused .grid-cover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--focus-ring), 0 14px 34px rgba(0, 0, 0, 0.6);
+}
+.grid-item.uninstalled .tile-art { filter: grayscale(0.6) brightness(0.65); }
+.grid-item.uninstalled.focused .tile-art { filter: none; }
+.grid-cover .art-placeholder { font-size: 30px; }
+.grid-title { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top: 4px; }
+.grid-meta { font-size: 13px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1em; }
+.grid-item:not(.focused) .grid-title { color: var(--fg-dim); }
+body.mouse-mode :is(.grid-item, .grid-chip) { cursor: pointer; }
+body.mouse-mode .grid-item:not(.focused):hover .grid-cover { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 6px 18px rgba(0, 0, 0, 0.45); }

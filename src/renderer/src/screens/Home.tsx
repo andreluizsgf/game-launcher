@@ -1,11 +1,13 @@
-import { useEffect, useRef, type WheelEvent } from 'react'
+import { useEffect, useRef, useState, type WheelEvent } from 'react'
 import { systemById } from '@shared/systems'
 import type { DownloadInfo, Game } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
-import { formatDownload, formatPlaytime, formatReleaseDate } from '../format'
+import { formatDownload, formatPlaytime } from '../format'
 import { useInput } from '../input/useInput'
+import { defaultFilter, type GridFilter } from '../library/gridFilter'
 import type { Shelf } from '../library/shelves'
+import { LibraryGrid } from './LibraryGrid'
 
 const SOURCE_LABEL: Record<Game['source'], string> = { folder: '', steam: 'Steam', epic: 'Epic Games', emulator: '' }
 const sourceLabel = (g: Game) => (g.source === 'emulator' ? (systemById(g.platform)?.name ?? '') : SOURCE_LABEL[g.source])
@@ -47,6 +49,9 @@ export function Home(props: Props) {
   const game = games[focus] ?? null
   const dl = game ? downloads.get(game.id) : undefined
   const clamp = (i: number) => Math.max(0, Math.min(games.length - 1, i))
+  // Installed games keep the PS5 home row; every other shelf is a filterable grid.
+  const gridMode = shelf !== 'installed'
+  const [filters, setFilters] = useState<Partial<Record<Shelf, GridFilter>>>({})
 
   useInput((a) => {
     if (a === 'options') return onSettings()
@@ -61,7 +66,7 @@ export function Home(props: Props) {
     else if (a === 'right') setFocus(clamp(focus + 1))
     else if (a === 'confirm') onLaunch(game)
     else if (a === 'details') onDetails(game)
-  }, active)
+  }, active && !gridMode)
 
   // Keep the focused tile anchored near the left edge, like the PS5 home row.
   useEffect(() => {
@@ -98,43 +103,73 @@ export function Home(props: Props) {
     )
   }
 
+  const shelfNav = shelves.length > 1 && (
+    <nav className="shelves">
+      {shelves.map((s) => (
+        <button key={s.id} className={`shelf ${s.id === shelf ? 'active' : ''}`} onClick={() => onShelf(s.id)}>
+          {s.label}
+          <span className="shelf-count">{s.count}</span>
+        </button>
+      ))}
+      <span className="shelf-hint">↑↓</span>
+    </nav>
+  )
+
+  if (gridMode) {
+    return (
+      <main className="home grid-mode">
+        {shelfNav}
+        <LibraryGrid
+          key={shelf}
+          shelf={shelf}
+          games={games}
+          focus={focus}
+          setFocus={setFocus}
+          filter={filters[shelf] ?? defaultFilter(shelf)}
+          onFilter={(f) => setFilters((all) => ({ ...all, [shelf]: f }))}
+          downloads={downloads}
+          runningId={runningId}
+          active={active}
+          onShelf={onShelf}
+          onLaunch={onLaunch}
+          onDetails={onDetails}
+          onSettings={onSettings}
+          onSearch={onSearch}
+          onTab={onTab}
+          onResume={onResume}
+        />
+        <ButtonHints
+          hints={[
+            ...(runningId != null ? [{ button: '○' as const, label: 'Voltar ao jogo' }] : []),
+            { button: '✕', label: 'Selecionar' },
+            { button: '△', label: 'Detalhes' },
+            { button: '□', label: 'Adicionar jogo' },
+            { button: 'OPTIONS', label: 'Configurações' }
+          ]}
+        />
+      </main>
+    )
+  }
+
   return (
     <main className="home">
-      {shelves.length > 1 && (
-        <nav className="shelves">
-          {shelves.map((s) => (
-            <button
-              key={s.id}
-              className={`shelf ${s.id === shelf ? 'active' : ''}`}
-              onClick={() => onShelf(s.id)}
-            >
-              {s.label}
-              <span className="shelf-count">{s.count}</span>
-            </button>
-          ))}
-          <span className="shelf-hint">↑↓</span>
-        </nav>
-      )}
+      {shelfNav}
       <div className="row-viewport" onWheel={onWheel}>
         <div className="row" ref={rowRef}>
           {games.map((g, i) => (
             <div
               key={g.id}
-              className={`tile ${i === focus ? 'focused' : ''} ${g.folder ? '' : 'uninstalled'}`}
+              className={`tile ${i === focus ? 'focused' : ''}`}
               onClick={() => (i === focus ? onDetails(g) : setFocus(i))}
               onDoubleClick={() => onLaunch(g)}
             >
               <GameArt game={g} className="tile-art" />
               {runningId === g.id && <span className="tile-badge">Em execução</span>}
-              {downloads.has(g.id) ? (
+              {downloads.has(g.id) && (
                 <>
                   <span className="tile-badge">{Math.floor(downloads.get(g.id)!.progress * 100)}%</span>
                   <span className="tile-progress" style={{ width: `${downloads.get(g.id)!.progress * 100}%` }} />
                 </>
-              ) : (
-                !g.folder && (
-                  <span className="tile-badge muted">{shelf === 'upcoming' ? 'Em breve' : 'Não instalado'}</span>
-                )
               )}
             </div>
           ))}
@@ -149,9 +184,7 @@ export function Home(props: Props) {
               className={`play-btn ${runningId === game.id ? 'running' : ''}`}
               disabled={
                 runningId !== game.id &&
-                (!(game.folder || game.source !== 'folder') ||
-                  !(game.exePath || game.launchUri || game.installerPath) ||
-                  !!dl)
+                (!(game.exePath || game.launchUri || game.installerPath) || !!dl)
               }
               onClick={() => onLaunch(game)}
             >
@@ -159,26 +192,16 @@ export function Home(props: Props) {
                 ? 'Voltar ao jogo'
                 : dl
                   ? `Baixando ${Math.floor(dl.progress * 100)}%`
-                  : !game.folder
-                    ? game.source !== 'folder'
-                      ? `Instalar na ${game.source === 'steam' ? 'Steam' : 'Epic'}`
-                      : shelf === 'upcoming'
-                      ? 'Em breve'
-                      : 'Não instalado'
-                    : game.exePath || game.launchUri
-                      ? 'Jogar'
-                      : game.installerPath
-                        ? 'Instalar'
-                        : 'Sem executável'}
+                  : game.exePath || game.launchUri
+                    ? 'Jogar'
+                    : game.installerPath
+                      ? 'Instalar'
+                      : 'Sem executável'}
             </button>
             <span className="hero-meta">
               {dl
                 ? formatDownload(dl)
-                : game.folder
-                  ? [sourceLabel(game), formatPlaytime(game.totalSeconds)].filter(Boolean).join(' · ')
-                  : shelf === 'upcoming'
-                    ? `Lança em ${formatReleaseDate(game.releaseDate)}`
-                    : [game.releaseYear, game.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}
+                : [sourceLabel(game), formatPlaytime(game.totalSeconds)].filter(Boolean).join(' · ')}
             </span>
           </div>
         </section>
