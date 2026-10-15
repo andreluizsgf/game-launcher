@@ -39,10 +39,10 @@ export const FIELDS =
   'fields name,first_release_date,summary,genres.name,cover.image_id,artworks.image_id,screenshots.image_id,total_rating,total_rating_count,hypes;'
 export { PC_WINDOWS }
 
-/** Apicalypse body for a PC game search. Exported for tests. */
-export function searchQuery(text: string, limit = 24): string {
+/** Apicalypse body for a game search on one platform (PC by default). Exported for tests. */
+export function searchQuery(text: string, limit = 24, platform = PC_WINDOWS): string {
   const q = text.replace(/["\\]/g, ' ').trim()
-  return `search "${q}"; ${FIELDS} where platforms = (${PC_WINDOWS}) & version_parent = null; limit ${limit};`
+  return `search "${q}"; ${FIELDS} where platforms = (${platform}) & version_parent = null; limit ${limit};`
 }
 
 export class IgdbClient {
@@ -88,8 +88,8 @@ export class IgdbClient {
     return (await res.json()) as T
   }
 
-  search(text: string): Promise<IgdbGame[]> {
-    return this.query<IgdbGame[]>('games', searchQuery(text))
+  search(text: string, platform?: number): Promise<IgdbGame[]> {
+    return this.query<IgdbGame[]>('games', searchQuery(text, 24, platform))
   }
 
   async get(id: number): Promise<IgdbGame | null> {

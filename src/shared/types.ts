@@ -1,7 +1,9 @@
+import type { EmulatorId } from './systems'
+
 export type InputMode = 'auto' | 'xinput' | 'kbm' | 'native'
 
 /** Where an installed game comes from: a folder in the games folder, or a store's own library. */
-export type GameSource = 'folder' | 'steam' | 'epic'
+export type GameSource = 'folder' | 'steam' | 'epic' | 'emulator'
 
 export interface Game {
   id: number
@@ -31,10 +33,16 @@ export interface Game {
   launchUri: string | null
   /** Repack installer (setup.exe) found in the folder; "Instalar" while there's no game exe yet. */
   installerPath: string | null
+  /** Emulated games: system id (see shared/systems). */
+  platform: string | null
 }
 
 export interface Settings {
   gamesRoot: string | null
+  /** ROMs folder: one subfolder per system. */
+  romsRoot: string | null
+  /** Emulator executables in use (picked or detected); null = not found. */
+  emulators: Record<EmulatorId, string | null>
   /** Show installed games from these stores' libraries. */
   steamLibrary: boolean
   epicLibrary: boolean
@@ -263,7 +271,8 @@ export interface LauncherApi {
   pickGamesRoot(): Promise<string | null>
   /** File dialog to pick the qBittorrent app/executable. */
   pickQbittorrent(): Promise<Settings>
-  catalogSearch(query: string): Promise<Result<CatalogHit[]>>
+  /** `platform`: system id of an emulated game, to search that console's catalog instead of PC. */
+  catalogSearch(query: string, platform?: string | null): Promise<Result<CatalogHit[]>>
   /** Adds a catalog game; merges into an installed game with the same title when there is one. */
   catalogAdd(igdbId: number): Promise<Result<Game>>
   /** Attaches catalog metadata/art to an existing library game. */
@@ -312,6 +321,10 @@ export interface LauncherApi {
   storage(): Promise<StorageInfo | null>
   setQbWebPassword(password: string): Promise<Settings>
   setSteamApiKey(key: string): Promise<Settings>
+  /** Folder picker for the ROMs folder; rescans. null = cancelled. */
+  pickRomsRoot(): Promise<Settings | null>
+  /** File picker for an emulator's executable; rescans. */
+  pickEmulator(id: EmulatorId): Promise<Settings>
   /** Opens Epic's sign-in window; resolves when it closes (settings unchanged if cancelled). */
   epicLogin(): Promise<Result<Settings>>
   epicLogout(): Promise<Settings>

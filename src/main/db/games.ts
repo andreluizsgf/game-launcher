@@ -26,6 +26,7 @@ interface GameRow {
   external_id: string | null
   launch_uri: string | null
   installer_path: string | null
+  platform: string | null
 }
 
 export interface CatalogMeta {
@@ -60,7 +61,8 @@ const toGame = (r: GameRow): Game => ({
   source: r.source,
   externalId: r.external_id,
   launchUri: r.launch_uri,
-  installerPath: r.installer_path
+  installerPath: r.installer_path,
+  platform: r.platform
 })
 
 export class GamesRepo {
@@ -234,7 +236,7 @@ export class GamesRepo {
     const inGamesFolder = rows.filter((r) => r.source === 'folder' && r.folder && !r.hidden)
     const update = this.db.prepare(
       `UPDATE games SET folder = ?, exe_path = CASE WHEN ? IS NULL THEN NULL ELSE COALESCE(?, exe_path) END,
-         launch_uri = ?, hidden = 0
+         launch_uri = ?, platform = COALESCE(?, platform), hidden = 0
        WHERE id = ?`
     )
     const attach = this.db.prepare(
@@ -242,8 +244,8 @@ export class GamesRepo {
        WHERE id = ?`
     )
     const insert = this.db.prepare(
-      `INSERT INTO games (folder, title, exe_path, source, external_id, launch_uri, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO games (folder, title, exe_path, source, external_id, launch_uri, platform, added_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     const hide = this.db.prepare('UPDATE games SET hidden = 1 WHERE id = ?')
     const seen = new Set<string>()
@@ -254,16 +256,26 @@ export class GamesRepo {
         seen.add(g.externalId)
         const known = byExt.get(g.externalId)
         if (known) {
-          update.run(g.folder, g.folder, g.exePath, g.launchUri, known.id)
+          update.run(g.folder, g.folder, g.exePath, g.launchUri, g.platform ?? null, known.id)
           continue
         }
         if (!g.folder && inGamesFolder.some((r) => titlesMatch(r.title, g.title))) continue
         const same = g.folder ? byFolder.get(g.folder.toLowerCase()) : undefined
-        const idx = same ? -1 : pending.findIndex((p) => titlesMatch(p.title, g.title))
+        // A ROM is never the PC game of the same name on the wishlist.
+        const idx = same || source === 'emulator' ? -1 : pending.findIndex((p) => titlesMatch(p.title, g.title))
         const target = same ?? (idx >= 0 ? pending.splice(idx, 1)[0] : null)
         if (target) attach.run(source, g.externalId, g.folder, g.exePath, g.launchUri, target.id)
         else {
-          const res = insert.run(g.folder, g.title, g.exePath, source, g.externalId, g.launchUri, Date.now())
+          const res = insert.run(
+            g.folder,
+            g.title,
+            g.exePath,
+            source,
+            g.externalId,
+            g.launchUri,
+            g.platform ?? null,
+            Date.now()
+          )
           added.push(Number(res.lastInsertRowid))
         }
       }

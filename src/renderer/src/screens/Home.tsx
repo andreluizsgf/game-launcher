@@ -1,4 +1,5 @@
 import { useEffect, useRef, type WheelEvent } from 'react'
+import { systemById } from '@shared/systems'
 import type { DownloadInfo, Game } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
@@ -6,7 +7,8 @@ import { formatDownload, formatPlaytime, formatReleaseDate } from '../format'
 import { useInput } from '../input/useInput'
 import type { Shelf } from '../library/shelves'
 
-const SOURCE_LABEL: Record<Game['source'], string> = { folder: '', steam: 'Steam', epic: 'Epic Games' }
+const SOURCE_LABEL: Record<Game['source'], string> = { folder: '', steam: 'Steam', epic: 'Epic Games', emulator: '' }
+const sourceLabel = (g: Game) => (g.source === 'emulator' ? (systemById(g.platform)?.name ?? '') : SOURCE_LABEL[g.source])
 
 interface ShelfTab {
   id: Shelf
@@ -173,7 +175,7 @@ export function Home(props: Props) {
               {dl
                 ? formatDownload(dl)
                 : game.folder
-                  ? [SOURCE_LABEL[game.source], formatPlaytime(game.totalSeconds)].filter(Boolean).join(' · ')
+                  ? [sourceLabel(game), formatPlaytime(game.totalSeconds)].filter(Boolean).join(' · ')
                   : shelf === 'upcoming'
                     ? `Lança em ${formatReleaseDate(game.releaseDate)}`
                     : [game.releaseYear, game.genres.slice(0, 2).join(', ')].filter(Boolean).join(' · ')}

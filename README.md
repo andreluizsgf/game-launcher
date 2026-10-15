@@ -4,6 +4,7 @@ Launcher estilo console (PS5) para Windows. Junta numa tela só os jogos da sua 
 
 - Biblioteca com capas, ficha e tempo de jogo (catálogo do IGDB)
 - Steam e Epic: jogos instalados e os da sua conta que não estão instalados
+- Emuladores: PS3 (RPCS3), PS2 (PCSX2) e retrô (RetroArch) a partir de uma pasta de ROMs
 - Busca de torrents pelo Telegram, download direto no qBittorrent pra pasta certa, com progresso no app
 - Repacks (setup.exe): instala e depois apaga o instalador
 - Overlay por cima do jogo (botão PS) pra voltar ao launcher ou fechar o jogo
@@ -59,6 +60,26 @@ Depois, no detalhe de cada jogo, **Identificar jogo** liga ele à ficha certa (c
   - **Steam**: precisa de uma Web API key. Gere em [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (domínio: `localhost`) e cole em **Steam Web API key**. A conta usada é a última que entrou na Steam neste PC.
 
   Eles aparecem na prateleira **Na biblioteca** com o botão **Instalar na Steam/Epic**.
+
+### Emuladores (opcional)
+
+PS3 pelo **RPCS3**, PS2 pelo **PCSX2** e retrô (NES, SNES, N64, GB/GBC/GBA, DS, Mega Drive, Master System, Game Gear, PS1, PSP, Dreamcast, PC Engine, Arcade) pelo **RetroArch**.
+
+1. Crie uma pasta de ROMs com **uma subpasta por console** e aponte em **Configurações → Pasta de ROMs**:
+   ```
+   D:\Roms\
+     ps3\     → pastas de jogo (com PS3_GAME\ ou USRDIR\) ou .iso
+     ps2\     → .iso, .chd, .cso…
+     psx\     → .chd, .cue, .m3u…
+     snes\    → .sfc, .smc, .zip
+     gba\, n64\, megadrive\, nes\, psp\, nds\, dreamcast\, arcade\…
+   ```
+   Nomes aceitos também: `PS1`, `Mega Drive`, `Genesis`, `Super Nintendo`, `Game Boy Advance`… Uma pasta por jogo dentro do console também funciona.
+2. Os emuladores são achados sozinhos nos lugares comuns (Arquivos de Programas, `C:\RetroArch-Win64`, ou uma pasta `Emuladores` ao lado da pasta de ROMs). Se não, aponte o `.exe` em **Configurações → RetroArch / PCSX2 / RPCS3**.
+3. **RetroArch**: baixe os cores em *Online Updater → Core Downloader* (ex.: Snes9x, mGBA, Genesis Plus GX, SwanStation, Mupen64Plus-Next). O app avisa qual falta.
+4. **RPCS3**: instale o firmware do PS3 nele uma vez. Jogos instalados dentro do RPCS3 (PSN/pkg) aparecem sozinhos.
+
+Os jogos ficam na prateleira **Emuladores**, com capa e ficha do IGDB do console certo. Jogar abre o emulador direto no jogo em tela cheia; tempo de jogo, overlay (botão PS) e "Fechar jogo" funcionam igual. Multi-disco: use um `.m3u` (aparece como um jogo só).
 
 ### Downloads — qBittorrent
 
@@ -116,6 +137,7 @@ O botão **PS**: com um jogo aberto, mostra o launcher por cima (dá pra voltar 
 | Download não aparece no app | Confira a Interface Web do qBittorrent (porta, usuário/senha). **qBittorrent Interface Web** em Configurações diz se conectou. |
 | Repack instalou em outro lugar | Reinstale escolhendo `<pasta do jogo>\Jogo`, ou mova a pasta instalada pra dentro da pasta de jogos. |
 | Controle conectado mas não mexe | Aperte qualquer botão; se continuar, desconecte e conecte de novo (o app procura o controle a cada 3 s). |
+| ROM não aparece | A subpasta precisa ter o nome do console (`ps2`, `snes`, `gba`…) e a extensão ser de ROM daquele console. |
 | Jogo da Steam/Epic não volta pro launcher ao fechar | Espere ~10 s; o app confere os processos a cada 5 s. |
 | Não aparece atualização | **Configurações → Versão → verificar agora** mostra o erro, se houver. |
 

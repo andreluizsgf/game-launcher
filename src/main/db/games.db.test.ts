@@ -134,3 +134,25 @@ describe('GamesRepo store games', () => {
     expect(r.list()).toHaveLength(1)
   })
 })
+
+describe('GamesRepo emulated games', () => {
+  const rom = (id: string, title: string) => ({
+    externalId: `ps2:ps2/${id}.iso`,
+    title,
+    folder: join('/roms/ps2', `${id}.iso`),
+    exePath: join('/roms/ps2', `${id}.iso`),
+    launchUri: null,
+    platform: 'ps2'
+  })
+
+  it('keeps the system and never attaches to a PC wishlist entry', () => {
+    const r = repo()
+    r.addCatalog(meta('God of War'))
+    const [id] = r.syncPlatform('emulator', [rom('gow', 'God of War')])
+    expect(r.get(id)).toMatchObject({ source: 'emulator', platform: 'ps2', igdbId: null })
+    expect(r.list()).toHaveLength(2)
+    r.syncPlatform('emulator', [])
+    expect(r.get(id)?.hidden).toBe(true)
+  })
+})
+

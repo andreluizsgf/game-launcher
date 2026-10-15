@@ -36,7 +36,7 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
     if (text.length < 2) return setState({ kind: 'idle' })
     const id = ++seq.current
     setState({ kind: 'loading' })
-    const res = await window.api.catalogSearch(text)
+    const res = await window.api.catalogSearch(text, mode.kind === 'link' ? mode.game.platform : null)
     if (id !== seq.current) return // a newer search superseded this one
     setState(res.ok ? { kind: 'results', hits: res.value } : { kind: 'error', message: res.error })
     setSel(0)

@@ -9,7 +9,10 @@ export interface PlatformGame {
   /** null = owned but not installed; launchUri then opens the store's install dialog. */
   folder: string | null
   exePath: string | null
-  launchUri: string
+  /** Store launch/install link; null for emulated games (launched through their emulator). */
+  launchUri: string | null
+  /** Emulated games: system id. */
+  platform?: string
   /** Store artwork, when the store hands it out. */
   art?: { cover: string | null; wide: string | null }
 }

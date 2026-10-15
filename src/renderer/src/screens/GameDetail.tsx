@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { EMULATOR_NAME, systemById } from '@shared/systems'
 import type { DownloadInfo, Game, GameAchievements } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
@@ -72,6 +73,7 @@ export function GameDetail(props: Props) {
   // In the Steam/Epic account but not on this PC.
   const store = game.source === 'steam' ? 'Steam' : game.source === 'epic' ? 'Epic Games' : null
   const storeOwned = !game.folder && !!store
+  const emulated = game.source === 'emulator' ? systemById(game.platform) : null
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
@@ -103,7 +105,7 @@ export function GameDetail(props: Props) {
     ...(telegramPeer ? [{ id: 'telegram', label: telegramMenuLabel(tg.state) } as Item] : []),
     { id: 'identify', label: game.igdbId ? 'Trocar ficha' : 'Identificar jogo' },
     // Epic has no uninstall link; the launcher's own library does it.
-    ...(game.folder && !running && game.source !== 'epic'
+    ...(game.folder && !running && game.source !== 'epic' && game.source !== 'emulator'
       ? [
           {
             id: 'uninstall',
@@ -229,7 +231,9 @@ export function GameDetail(props: Props) {
           )}
           {installed && (
             <p className="path" title={game.exeOverride ?? game.exePath ?? game.installerPath ?? game.folder ?? ''}>
-              {game.source === 'steam'
+              {game.source === 'emulator'
+                ? `${emulated?.name ?? 'Emulador'} · ${emulated ? EMULATOR_NAME[emulated.emulator] : ''} · ${game.folder}`
+                : game.source === 'steam'
                 ? `Steam · ${game.folder}`
                 : game.source === 'epic'
                   ? `Epic Games · ${game.folder}`

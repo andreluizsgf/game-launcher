@@ -1,12 +1,18 @@
 import { app, safeStorage } from 'electron'
-import { readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
+import type { EmulatorId } from '@shared/systems'
 import type { Settings } from '@shared/types'
+import { detectEmulator } from './emulators/launch'
 import { findQbittorrent } from './telegram/qbittorrent'
 
 /** On-disk shape. Secrets (IGDB secret, Telegram hash/session) are encrypted with the OS keychain (safeStorage). */
 export interface StoredSettings {
   gamesRoot: string | null
+  /** One subfolder per system (ps2, ps3, snes…). */
+  romsRoot: string | null
+  /** Emulator executables picked by hand; otherwise detected. */
+  emulatorPaths: Partial<Record<EmulatorId, string>>
   steamLibrary: boolean
   epicLibrary: boolean
   /** Steam Web API key: lists the account's games that aren't installed. */
@@ -32,6 +38,8 @@ export interface StoredSettings {
 
 const DEFAULTS: StoredSettings = {
   gamesRoot: null,
+  romsRoot: null,
+  emulatorPaths: {},
   steamLibrary: true,
   epicLibrary: true,
   steamApiKeyEnc: null,
@@ -62,6 +70,7 @@ export function loadSettings(): StoredSettings {
   }
   // Dev convenience: `GL_GAMES_ROOT=fixtures/games npm run dev`
   if (!s.gamesRoot && process.env.GL_GAMES_ROOT) s.gamesRoot = resolve(process.env.GL_GAMES_ROOT)
+  if (!s.romsRoot && process.env.GL_ROMS_ROOT) s.romsRoot = resolve(process.env.GL_ROMS_ROOT)
   return s
 }
 
@@ -72,6 +81,12 @@ export function saveSettings(s: StoredSettings): void {
 export function publicSettings(s: StoredSettings): Settings {
   return {
     gamesRoot: s.gamesRoot,
+    romsRoot: s.romsRoot,
+    emulators: {
+      retroarch: emulatorPath(s, 'retroarch'),
+      pcsx2: emulatorPath(s, 'pcsx2'),
+      rpcs3: emulatorPath(s, 'rpcs3')
+    },
     steamLibrary: s.steamLibrary,
     epicLibrary: s.epicLibrary,
     hasSteamApiKey: !!s.steamApiKeyEnc,
@@ -139,4 +154,11 @@ export function igdbCredentials(s: StoredSettings): { clientId: string; clientSe
   const clientId = s.igdbClientId || process.env.IGDB_CLIENT_ID
   const clientSecret = s.igdbSecretEnc ? decrypt(s.igdbSecretEnc) : (process.env.IGDB_CLIENT_SECRET ?? null)
   return clientId && clientSecret ? { clientId, clientSecret } : null
+}
+
+/** The emulator picked in Settings, or one found in the usual places. */
+export function emulatorPath(s: StoredSettings, id: EmulatorId): string | null {
+  const picked = s.emulatorPaths[id]
+  if (picked && existsSync(picked)) return picked
+  return detectEmulator(id, s.romsRoot)
 }

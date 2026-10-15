@@ -1,16 +1,19 @@
 import { shell } from 'electron'
 import { mkdirSync, promises as fs } from 'fs'
 import { basename, dirname, join, resolve, sep } from 'path'
+import { systemById } from '@shared/systems'
 import type { ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
 import { download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
+import { launchArgs, missingEmulator } from '../emulators/launch'
+import { scanRoms } from '../emulators/scan'
 import { gameFolderOf } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
 import { ownedEpicGames, scanEpic } from '../platforms/epic'
 import type { EpicAccount } from '../platforms/epicAccount'
 import { ownedSteamGames, scanSteam, steamArt, type PlatformGame } from '../platforms/steam'
-import { decrypt, igdbCredentials, type StoredSettings } from '../settings'
+import { decrypt, emulatorPath, igdbCredentials, type StoredSettings } from '../settings'
 import type { Catalog } from './catalog'
 import { INSTALL_DIR, runInstaller } from './installer'
 import type { Runner } from './runner'
@@ -40,6 +43,7 @@ export class Library {
       ? repo.sync(await scanRoot(settings.gamesRoot))
       : { added: 0, updated: 0, removed: 0, total: 0 }
     await this.syncPlatforms().catch((err) => console.warn('[platforms] sync failed', err))
+    await this.syncEmulated().catch((err) => console.warn('[emulators] sync failed', err))
     return result
   }
 
@@ -113,11 +117,38 @@ export class Library {
     await shell.openExternal(game.launchUri)
   }
 
+  /** ROMs folder → emulated games; new ones get looked up on IGDB (that console) in the background. */
+  private async syncEmulated(): Promise<void> {
+    const { repo, settings } = this.d
+    const rpcs3 = emulatorPath(settings, 'rpcs3')
+    const roms = settings.romsRoot ? await scanRoms(settings.romsRoot, rpcs3 ? dirname(rpcs3) : null) : []
+    const added = repo.syncPlatform('emulator', roms)
+    if (added.length && igdbCredentials(settings)) void this.identifyEmulated(added).then(() => this.d.onChanged())
+  }
+
+  private async identifyEmulated(ids: number[]): Promise<void> {
+    const { repo, catalog } = this.d
+    const jobs = ids.map((id) => async () => {
+      const g = repo.get(id)
+      const system = systemById(g?.platform)
+      if (!g || !system) return
+      const hit = (await catalog.igdb.search(g.title, system.igdbPlatform)).find((h) => titlesMatch(h.name, g.title))
+      if (hit && !repo.byIgdbId(hit.id)) repo.applyCatalog(id, await catalog.toMeta(hit))
+    })
+    // IGDB allows 4 requests/s; a first ROMs scan can be hundreds of games.
+    await pool(jobs, 2)
+  }
+
   async launch(gameId: number): Promise<void> {
     const game = this.d.repo.get(gameId)
     if (!game) throw new Error('Jogo não encontrado')
     if (!game.folder) throw new Error('Jogo não instalado')
-    await this.d.runner.launch(game)
+    if (game.source !== 'emulator') return this.d.runner.launch(game)
+    const system = systemById(game.platform)
+    if (!system) throw new Error('Sistema desconhecido')
+    const exe = emulatorPath(this.d.settings, system.emulator)
+    if (!exe) throw missingEmulator(system.emulator)
+    await this.d.runner.launch(game, { exe, args: launchArgs(system, exe, game.folder), watch: dirname(exe) })
   }
 
   async uninstall(gameId: number): Promise<void> {
@@ -131,6 +162,7 @@ export class Library {
       await shell.openExternal(`steam://uninstall/${game.externalId}`)
       return
     }
+    if (game.source === 'emulator') throw new Error('Apague a ROM pela pasta de ROMs')
     if (game.source !== 'folder') throw new Error('Desinstale pela Epic Games Launcher')
     if (!root || !isDirectChild(game.folder, root)) {
       throw new Error('Por segurança, só jogos dentro da pasta de jogos podem ser desinstalados pelo app')

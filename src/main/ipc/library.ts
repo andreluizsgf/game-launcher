@@ -26,7 +26,7 @@ export function registerLibrary({ repo, library, catalog, store, awn, settings, 
   handle('game:cleanInstaller', (gameId: number) => library.cleanInstaller(gameId))
   handle('game:storeInstall', (gameId: number) => library.storeInstall(gameId))
 
-  handle('catalog:search', (query: string) => catalog.search(query))
+  handle('catalog:search', (query: string, platform?: string | null) => catalog.search(query, platform))
   handle('catalog:add', (igdbId: number) => catalog.add(igdbId))
   handle('catalog:link', (gameId: number, igdbId: number) => catalog.link(gameId, igdbId))
   handle('store:sections', (force?: boolean) => (process.env.GL_STORE_MOCK ? mockSections() : store.sections(force)))

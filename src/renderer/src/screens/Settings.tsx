@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { EMULATOR_NAME } from '@shared/systems'
 import type { DownloadsStatus, Result, Settings as S, StorageInfo, TgLoginStep, UpdateState } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { TextEntry } from '../components/TextEntry'
@@ -121,6 +122,21 @@ export function Settings(props: Props) {
     updateItem,
     { label: 'Pasta de jogos', value: settings.gamesRoot ?? 'Não definida', run: onPickRoot },
     { label: 'Reescanear biblioteca', value: '', run: onRescan },
+    {
+      label: 'Pasta de ROMs',
+      value: settings.romsRoot ?? 'Não definida — uma subpasta por console: ps2, ps3, snes…',
+      run: async () => {
+        const s = await window.api.pickRomsRoot()
+        if (!s) return
+        onSettings(s)
+        notify('ROMs atualizadas')
+      }
+    },
+    ...(['retroarch', 'pcsx2', 'rpcs3'] as const).map((id) => ({
+      label: EMULATOR_NAME[id],
+      value: settings.emulators[id] ?? 'Não encontrado — escolher o .exe',
+      run: async () => onSettings(await window.api.pickEmulator(id))
+    })),
     {
       label: 'Biblioteca Steam',
       value: !settings.steamLibrary

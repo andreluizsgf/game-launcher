@@ -1,4 +1,5 @@
 import { dialog, ipcMain, session } from 'electron'
+import { EMULATOR_NAME, type EmulatorId } from '@shared/systems'
 import type { Settings, SettingsPatch } from '@shared/types'
 import { applyOpenAtLogin, encrypt, normalizePeer, publicSettings, saveSettings, setIgdbSecret } from '../settings'
 import { resolveQbittorrent } from '../telegram/qbittorrent'
@@ -92,6 +93,26 @@ export function registerSettings({ settings, downloads, telegram, library, epic,
     saveSettings(settings)
     await library.rescan()
     return settings.gamesRoot
+  })
+  ipcMain.handle('settings:pickRomsRoot', async () => {
+    const folder = await pick({ properties: ['openDirectory'], title: 'Pasta de ROMs' })
+    if (!folder) return null
+    settings.romsRoot = folder
+    saveSettings(settings)
+    await library.rescan()
+    return pub()
+  })
+  ipcMain.handle('settings:pickEmulator', async (_e, id: EmulatorId) => {
+    const file = await pick({
+      properties: ['openFile'],
+      title: EMULATOR_NAME[id],
+      filters: [{ name: 'Executável', extensions: ['exe'] }]
+    })
+    if (!file) return pub()
+    settings.emulatorPaths = { ...settings.emulatorPaths, [id]: file }
+    saveSettings(settings)
+    await library.rescan()
+    return pub()
   })
   ipcMain.handle('settings:pickQbittorrent', async () => {
     const file = await pick({

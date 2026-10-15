@@ -59,7 +59,9 @@ const MIGRATIONS: string[] = [
    ALTER TABLE games ADD COLUMN launch_uri TEXT;
    CREATE UNIQUE INDEX games_external ON games(source, external_id) WHERE external_id IS NOT NULL;`,
   // v5: repacks that still have to be installed (setup.exe in the folder).
-  `ALTER TABLE games ADD COLUMN installer_path TEXT;`
+  `ALTER TABLE games ADD COLUMN installer_path TEXT;`,
+  // v6: emulated games (source 'emulator') and their system.
+  `ALTER TABLE games ADD COLUMN platform TEXT;`
 ]
 
 export function openDb(file: string): Database.Database {

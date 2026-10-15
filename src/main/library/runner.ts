@@ -75,9 +75,17 @@ function listProcesses(): Promise<Proc[]> {
 const inFolder = (folder: string) => (p: Proc) => p.path.toLowerCase().startsWith(folder)
 const folderKey = (folder: string) => folder.toLowerCase().replace(/[\\/]+$/, '') + sep
 
+/** How to start a game that isn't its own exe (emulated games): the command, and where its processes live. */
+export interface LaunchSpec {
+  exe: string
+  args: string[]
+  /** Folder whose processes are the game while it runs (the emulator's). */
+  watch: string
+}
+
 export class Runner {
   private running = new Map<number, NodeJS.Timeout>()
-  private games = new Map<number, { game: Game; startedAt: number }>()
+  private games = new Map<number, { game: Game; startedAt: number; watch: string }>()
 
   constructor(private hooks: RunnerHooks) {}
 
@@ -85,38 +93,39 @@ export class Runner {
     return this.running.has(gameId)
   }
 
-  async launch(game: Game): Promise<void> {
-    const exe = game.exeOverride ?? game.exePath
+  async launch(game: Game, spec?: LaunchSpec): Promise<void> {
+    const exe = spec?.exe ?? game.exeOverride ?? game.exePath
+    const args = spec?.args ?? []
     if (!game.folder) throw new Error('Jogo não instalado')
     if (!exe && !game.launchUri) throw new Error('Nenhum executável encontrado para este jogo')
-    const gameFolder = game.folder
+    const gameFolder = spec?.watch ?? game.folder
     if (this.running.has(game.id)) throw new Error('Jogo já está rodando')
 
     await this.hooks.beforeLaunch?.(game)
     const startedAt = Date.now()
-    this.games.set(game.id, { game, startedAt })
+    this.games.set(game.id, { game, startedAt, watch: gameFolder })
 
     if (process.platform !== 'win32') {
       // Dev stub on macOS/Linux: simulate a short session.
-      console.log(`[runner] stub launch: ${game.launchUri ?? exe}`)
+      console.log(`[runner] stub launch: ${game.launchUri ?? [exe, ...args].join(' ')}`)
       this.hooks.onStart(game, startedAt)
       const t = setTimeout(() => this.finish(game, startedAt), Number(process.env.GL_STUB_SECONDS ?? 3) * 1000)
       this.running.set(game.id, t)
       return
     }
 
-    if (game.launchUri) {
+    if (game.launchUri && !spec) {
       // Steam/Epic start the game themselves (DRM, cloud saves, updates); we still track it by folder.
       await shell.openExternal(game.launchUri)
     } else {
-      const child = spawn(exe!, [], { cwd: dirname(exe!), detached: true, stdio: 'ignore' })
+      const child = spawn(exe!, args, { cwd: dirname(exe!), detached: true, stdio: 'ignore' })
       child.on('error', (e) => console.error('[runner] spawn error', e))
       child.unref()
     }
     this.hooks.onStart(game, startedAt)
 
     const folder = folderKey(gameFolder)
-    const grace = game.launchUri ? STORE_GRACE_MS : STARTUP_GRACE_MS
+    const grace = game.launchUri && !spec ? STORE_GRACE_MS : STARTUP_GRACE_MS
     let watch: Watch = { seen: false, misses: 0 }
     const tick = async (): Promise<void> => {
       const alive = (await listProcesses()).some(inFolder(folder))
@@ -142,8 +151,8 @@ export class Runner {
     const entry = this.games.get(gameId)
     if (!entry) throw new Error('Esse jogo não está rodando')
     clearTimeout(this.running.get(gameId))
-    if (process.platform === 'win32' && entry.game.folder) {
-      const procs = (await listProcesses()).filter(inFolder(folderKey(entry.game.folder)))
+    if (process.platform === 'win32') {
+      const procs = (await listProcesses()).filter(inFolder(folderKey(entry.watch)))
       await Promise.all(
         procs.map(
           (p) =>

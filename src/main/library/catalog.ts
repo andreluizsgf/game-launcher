@@ -1,3 +1,4 @@
+import { systemById } from '@shared/systems'
 import type { CatalogHit, Game } from '@shared/types'
 import { cacheArt } from '../catalog/art'
 import { IgdbClient, imageUrl, type IgdbGame } from '../catalog/igdb'
@@ -29,8 +30,9 @@ export class Catalog {
     return this.toMeta(g)
   }
 
-  async search(query: string): Promise<CatalogHit[]> {
-    const games = await this.igdb.search(query)
+  /** `system`: an emulated game's system id, to search that console instead of PC. */
+  async search(query: string, system?: string | null): Promise<CatalogHit[]> {
+    const games = await this.igdb.search(query, systemById(system)?.igdbPlatform)
     return games.map((g) => ({
       igdbId: g.id,
       name: g.name,

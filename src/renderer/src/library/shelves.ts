@@ -1,11 +1,12 @@
 import type { DownloadInfo, Game } from '@shared/types'
 
-export type Shelf = 'installed' | 'downloading' | 'library' | 'upcoming'
+export type Shelf = 'installed' | 'emulated' | 'downloading' | 'library' | 'upcoming'
 
-export const SHELF_ORDER: Shelf[] = ['installed', 'downloading', 'library', 'upcoming']
+export const SHELF_ORDER: Shelf[] = ['installed', 'emulated', 'downloading', 'library', 'upcoming']
 
 export const SHELF_LABEL: Record<Shelf, string> = {
   installed: 'Instalados',
+  emulated: 'Emuladores',
   downloading: 'Baixando',
   library: 'Na biblioteca',
   upcoming: 'Aguardados'
@@ -26,6 +27,7 @@ export function isUpcoming(g: Game, now: number): boolean {
 /** A download in progress wins over "installed": its folder already exists but the game isn't complete. */
 export function shelfOf(g: Game, downloads: Map<number, DownloadInfo>, now: number): Shelf {
   if (downloads.has(g.id)) return 'downloading'
+  if (g.source === 'emulator') return 'emulated'
   if (g.folder) return 'installed'
   return isUpcoming(g, now) ? 'upcoming' : 'library'
 }
@@ -36,7 +38,7 @@ export function groupShelves(
   downloads: Map<number, DownloadInfo>,
   now = Date.now()
 ): Record<Shelf, Game[]> {
-  const out: Record<Shelf, Game[]> = { installed: [], downloading: [], library: [], upcoming: [] }
+  const out: Record<Shelf, Game[]> = { installed: [], emulated: [], downloading: [], library: [], upcoming: [] }
   for (const g of games) out[shelfOf(g, downloads, now)].push(g)
   out.upcoming.sort((a, b) => (a.releaseDate ?? Infinity) - (b.releaseDate ?? Infinity))
   return out
