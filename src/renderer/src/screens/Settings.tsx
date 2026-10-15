@@ -140,10 +140,29 @@ export function Settings(props: Props) {
     },
     {
       label: 'Biblioteca Epic Games',
-      value: settings.epicLibrary ? 'Instalados e não instalados' : 'Desligada',
+      value: !settings.epicLibrary
+        ? 'Desligada'
+        : settings.epicAccount
+          ? 'Instalados e não instalados'
+          : 'Instalados (entre na conta pra ver o resto)',
       run: async () => {
         onSettings(await window.api.setSettings({ epicLibrary: !settings.epicLibrary }))
         onRescan()
+      }
+    },
+    {
+      label: 'Conta Epic Games',
+      value: settings.epicAccount ? `${settings.epicAccount} · sair` : 'Entrar — mostra os jogos não instalados',
+      run: async () => {
+        if (settings.epicAccount) {
+          onSettings(await window.api.epicLogout())
+          return notify('Conta Epic desconectada')
+        }
+        notify('Entre na janela da Epic (teclado e mouse)')
+        const res = await window.api.epicLogin()
+        if (!res.ok) return notify(res.error)
+        onSettings(res.value)
+        if (res.value.epicAccount) notify(`Conectado como ${res.value.epicAccount}`)
       }
     },
     {

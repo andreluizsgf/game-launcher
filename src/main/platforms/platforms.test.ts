@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import { parseCatCache, parseEpicItem } from './epic'
+import { libraryToGames } from './epicAccount'
 import { libraryPaths, parseAppManifest, parseOwnedGames, steamIdFromLoginUsers } from './steam'
 import { parseVdf } from './vdf'
 
@@ -133,5 +134,38 @@ describe('epic catalog cache', () => {
 
   it('survives garbage', () => {
     expect(parseCatCache('not base64 json')).toEqual([])
+  })
+})
+
+describe('epic account library', () => {
+  const catalog = {
+    item1: {
+      title: 'Control',
+      categories: [{ path: 'games/edition/base' }, { path: 'games' }],
+      keyImages: [{ type: 'DieselGameBoxTall', url: 'https://cdn/tall.jpg' }]
+    },
+    dlc1: { title: 'Control - AWE', categories: [{ path: 'addons' }], mainGameItem: { id: 'item1' } }
+  }
+
+  it('maps owned records to games, skipping DLC, Unreal assets and unknown items', () => {
+    const games = libraryToGames(
+      [
+        { namespace: 'ns1', catalogItemId: 'item1', appName: 'Calluna' },
+        { namespace: 'ns1', catalogItemId: 'dlc1', appName: 'CallunaAwe' },
+        { namespace: 'ue', catalogItemId: 'item1', appName: 'Asset' },
+        { namespace: 'ns9', catalogItemId: 'unknown', appName: 'X' }
+      ],
+      catalog
+    )
+    expect(games).toEqual([
+      {
+        externalId: 'ns1:item1:Calluna',
+        title: 'Control',
+        folder: null,
+        exePath: null,
+        launchUri: 'com.epicgames.launcher://apps/ns1%3Aitem1%3ACalluna?action=install',
+        art: { cover: 'https://cdn/tall.jpg', wide: null }
+      }
+    ])
   })
 })

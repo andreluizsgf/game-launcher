@@ -9,7 +9,8 @@ import { DownloadWatcher } from '../downloads/watcher'
 import { Catalog } from '../library/catalog'
 import { Library } from '../library/library'
 import type { Runner } from '../library/runner'
-import { decrypt, igdbCredentials, type StoredSettings } from '../settings'
+import { EpicAccount } from '../platforms/epicAccount'
+import { decrypt, encrypt, igdbCredentials, saveSettings, type StoredSettings } from '../settings'
 import { TelegramService } from '../telegram/service'
 import { Updater } from '../updater'
 import type { IpcContext } from './context'
@@ -50,12 +51,23 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
       send('library:changed', `${item.title} baixado — pronto pra jogar`)
     }
   })
+  const epic = new EpicAccount({
+    getRefreshToken: () => decrypt(settings.epicRefreshEnc),
+    saveLogin: (token, name) => {
+      settings.epicRefreshEnc = token ? encrypt(token) : null
+      if (!token) settings.epicAccountName = null
+      else if (name) settings.epicAccountName = name
+      saveSettings(settings)
+    },
+    cacheFile: join(app.getPath('userData'), 'epic-library.json')
+  })
   const library = new Library({
     repo,
     runner,
     settings,
     catalog,
     qbWeb,
+    epic,
     artDir,
     onDownloadsChanged: () => downloads.poke(),
     onChanged: () => send('library:changed', null)
@@ -91,6 +103,7 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
     telegram,
     updater,
     awn,
+    epic,
     getWindow
   }
   registerLibrary(ctx)

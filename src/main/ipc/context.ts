@@ -6,6 +6,7 @@ import type { DownloadWatcher } from '../downloads/watcher'
 import type { Catalog } from '../library/catalog'
 import type { Library } from '../library/library'
 import type { Runner } from '../library/runner'
+import type { EpicAccount } from '../platforms/epicAccount'
 import type { StoredSettings } from '../settings'
 import type { TelegramService } from '../telegram/service'
 import type { Updater } from '../updater'
@@ -22,5 +23,6 @@ export interface IpcContext {
   telegram: TelegramService
   updater: Updater
   awn: AwnReader
+  epic: EpicAccount
   getWindow(): BrowserWindow | null
 }

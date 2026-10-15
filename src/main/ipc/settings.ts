@@ -1,11 +1,13 @@
-import { dialog, ipcMain } from 'electron'
+import { dialog, ipcMain, session } from 'electron'
 import type { Settings, SettingsPatch } from '@shared/types'
 import { applyOpenAtLogin, encrypt, normalizePeer, publicSettings, saveSettings, setIgdbSecret } from '../settings'
 import { resolveQbittorrent } from '../telegram/qbittorrent'
+import { epicSignIn } from '../platforms/epicLogin'
 import type { IpcContext } from './context'
+import { handle } from './result'
 
 /** Settings: plain values, secrets (encrypted at rest) and folder/app pickers. */
-export function registerSettings({ settings, downloads, telegram, library, getWindow }: IpcContext): void {
+export function registerSettings({ settings, downloads, telegram, library, epic, getWindow }: IpcContext): void {
   const pub = (): Settings => publicSettings(settings)
   const save = () => {
     saveSettings(settings)
@@ -64,6 +66,21 @@ export function registerSettings({ settings, downloads, telegram, library, getWi
   ipcMain.handle('settings:setSteamApiKey', async (_e, key: string) => {
     settings.steamApiKeyEnc = encrypt(key)
     saveSettings(settings)
+    await library.rescan()
+    return pub()
+  })
+
+  handle('epic:login', async () => {
+    const code = await epicSignIn(getWindow())
+    if (!code) return pub()
+    await epic.login(code)
+    await library.rescan()
+    return pub()
+  })
+  ipcMain.handle('epic:logout', async () => {
+    epic.logout()
+    // Otherwise the next "Entrar" signs straight back into the same account.
+    await session.fromPartition('persist:epic-login').clearStorageData()
     await library.rescan()
     return pub()
   })

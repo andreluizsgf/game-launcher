@@ -55,7 +55,7 @@ Depois, no detalhe de cada jogo, **Identificar jogo** liga ele à ficha certa (c
 
 - **Jogos instalados**: já vêm ligados. Dá pra desligar em **Biblioteca Steam** / **Biblioteca Epic Games**.
 - **Jogos da conta que não estão instalados**:
-  - **Epic**: automático (lido do launcher da Epic; ele precisa ter sido aberto logado ao menos uma vez).
+  - **Epic**: **Conta Epic Games → Entrar** abre a página de login da própria Epic (use teclado/mouse; a senha não passa pelo app). Sem entrar, só aparece o que o launcher da Epic tem em cache — geralmente só parte da biblioteca.
   - **Steam**: precisa de uma Web API key. Gere em [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (domínio: `localhost`) e cole em **Steam Web API key**. A conta usada é a última que entrou na Steam neste PC.
 
   Eles aparecem na prateleira **Na biblioteca** com o botão **Instalar na Steam/Epic**.

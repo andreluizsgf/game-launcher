@@ -11,6 +11,9 @@ export interface StoredSettings {
   epicLibrary: boolean
   /** Steam Web API key: lists the account's games that aren't installed. */
   steamApiKeyEnc: string | null
+  /** Signed-in Epic account: rotating refresh token (encrypted) and its display name. */
+  epicRefreshEnc: string | null
+  epicAccountName: string | null
   fullscreen: boolean
   openAtLogin: boolean
   igdbClientId: string | null
@@ -32,6 +35,8 @@ const DEFAULTS: StoredSettings = {
   steamLibrary: true,
   epicLibrary: true,
   steamApiKeyEnc: null,
+  epicRefreshEnc: null,
+  epicAccountName: null,
   fullscreen: false,
   openAtLogin: false,
   igdbClientId: null,
@@ -70,6 +75,7 @@ export function publicSettings(s: StoredSettings): Settings {
     steamLibrary: s.steamLibrary,
     epicLibrary: s.epicLibrary,
     hasSteamApiKey: !!s.steamApiKeyEnc,
+    epicAccount: s.epicRefreshEnc ? (s.epicAccountName ?? 'Conta Epic') : null,
     fullscreen: s.fullscreen,
     openAtLogin: s.openAtLogin,
     igdbClientId: s.igdbClientId,

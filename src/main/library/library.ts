@@ -8,6 +8,7 @@ import type { GamesRepo } from '../db/games'
 import { gameFolderOf } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
 import { ownedEpicGames, scanEpic } from '../platforms/epic'
+import type { EpicAccount } from '../platforms/epicAccount'
 import { ownedSteamGames, scanSteam, steamArt, type PlatformGame } from '../platforms/steam'
 import { decrypt, igdbCredentials, type StoredSettings } from '../settings'
 import type { Catalog } from './catalog'
@@ -21,6 +22,7 @@ interface Deps {
   settings: StoredSettings
   catalog: Catalog
   qbWeb: QbWebApi
+  epic: EpicAccount
   artDir: string
   /** Something on disk changed (e.g. a torrent was dropped): re-poll downloads. */
   onDownloadsChanged(): void
@@ -52,7 +54,12 @@ export class Library {
     const steam = settings.steamLibrary ? merge(await scanSteam(), steamOwned) : []
     const steamNew = repo.syncPlatform('steam', steam, steamOwned !== null)
 
-    const epicOwned = settings.epicLibrary ? ownedEpicGames() : []
+    // Signed in: the whole account. Otherwise the launcher's local cache (only part of the library).
+    const epicOwned = !settings.epicLibrary
+      ? []
+      : this.d.epic.signedIn()
+        ? await this.d.epic.ownedGames().catch(warn)
+        : ownedEpicGames()
     const epic = settings.epicLibrary ? merge(scanEpic(), epicOwned) : []
     const epicNew = repo.syncPlatform('epic', epic, epicOwned !== null)
 

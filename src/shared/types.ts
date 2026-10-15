@@ -40,6 +40,8 @@ export interface Settings {
   epicLibrary: boolean
   /** With a Steam Web API key, owned games that aren't installed show up too. */
   hasSteamApiKey: boolean
+  /** Signed-in Epic account (display name): lists owned games that aren't installed. */
+  epicAccount: string | null
   fullscreen: boolean
   /** Start with Windows, straight into fullscreen. */
   openAtLogin: boolean
@@ -310,6 +312,9 @@ export interface LauncherApi {
   storage(): Promise<StorageInfo | null>
   setQbWebPassword(password: string): Promise<Settings>
   setSteamApiKey(key: string): Promise<Settings>
+  /** Opens Epic's sign-in window; resolves when it closes (settings unchanged if cancelled). */
+  epicLogin(): Promise<Result<Settings>>
+  epicLogout(): Promise<Settings>
   getDownloads(): Promise<DownloadsStatus>
   onDownloads(cb: (s: DownloadsStatus) => void): () => void
   /** Main process changed the library (download added a game, finished download rescanned). */

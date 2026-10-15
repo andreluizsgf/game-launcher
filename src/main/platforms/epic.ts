@@ -64,7 +64,7 @@ export function scanEpic(dir = EPIC_MANIFESTS): PlatformGame[] {
 export const epicCatCache = (localAppData = process.env.LOCALAPPDATA ?? '') =>
   join(localAppData, 'EpicGamesLauncher', 'Saved', 'Data', 'Catalog', 'catcache.bin')
 
-interface CatalogItem {
+export interface CatalogItem {
   id?: string
   title?: string
   namespace?: string
@@ -82,6 +82,28 @@ const image = (it: CatalogItem, ...types: string[]) => {
   return null
 }
 
+/** Install link for an Epic game id (namespace:catalogItemId:appName). */
+const installUri = (id: string) => `com.epicgames.launcher://apps/${encodeURIComponent(id)}?action=install`
+
+/** A catalog item → not-installed game; null for DLC, add-ons and anything that isn't a game. */
+export function gameFromCatalog(it: CatalogItem, appName: string): PlatformGame | null {
+  if (!it.id || !it.title || !it.namespace || it.mainGameItem) return null
+  const cats = (it.categories ?? []).map((c) => c.path ?? '')
+  if (!cats.some((c) => c === 'games' || c.startsWith('games/')) || cats.includes('addons')) return null
+  const id = `${it.namespace}:${it.id}:${appName}`
+  return {
+    externalId: id,
+    title: it.title,
+    folder: null,
+    exePath: null,
+    launchUri: installUri(id),
+    art: {
+      cover: image(it, 'DieselGameBoxTall', 'OfferImageTall', 'Thumbnail'),
+      wide: image(it, 'DieselGameBox', 'OfferImageWide')
+    }
+  }
+}
+
 /** catcache.bin → the account's games (DLC, add-ons and non-Windows releases left out), with their art. */
 export function parseCatCache(content: string): PlatformGame[] {
   let items: CatalogItem[]
@@ -94,23 +116,9 @@ export function parseCatCache(content: string): PlatformGame[] {
   if (!Array.isArray(items)) return []
   const games = new Map<string, PlatformGame>()
   for (const it of items) {
-    if (!it.id || !it.title || !it.namespace || it.mainGameItem) continue
-    const cats = (it.categories ?? []).map((c) => c.path)
-    if (!cats.includes('games') || cats.includes('addons')) continue
     const release = it.releaseInfo?.find((r) => r.appId && (!r.platform || r.platform.includes('Windows')))
-    if (!release?.appId) continue
-    const id = `${it.namespace}:${it.id}:${release.appId}`
-    games.set(id, {
-      externalId: id,
-      title: it.title,
-      folder: null,
-      exePath: null,
-      launchUri: `com.epicgames.launcher://apps/${encodeURIComponent(id)}?action=install`,
-      art: {
-        cover: image(it, 'DieselGameBoxTall', 'OfferImageTall', 'Thumbnail'),
-        wide: image(it, 'DieselGameBox', 'OfferImageWide')
-      }
-    })
+    const g = release?.appId ? gameFromCatalog(it, release.appId) : null
+    if (g) games.set(g.externalId, g)
   }
   return [...games.values()]
 }
