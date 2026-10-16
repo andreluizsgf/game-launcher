@@ -90,7 +90,7 @@ export function GameDetail(props: Props) {
     ...(running
       ? [
           { id: 'resume', label: 'Voltar ao jogo' } as Item,
-          ...(emulated?.emulator === 'retroarch'
+          ...(emulated?.emulator === 'retroarch' || emulated?.emulator === 'pcsx2'
             ? ([
                 { id: 'saveState', label: 'Salvar estado' },
                 { id: 'loadState', label: 'Carregar estado' },
@@ -227,10 +227,10 @@ export function GameDetail(props: Props) {
               <code>Jogo</code> dentro da pasta do jogo.
             </p>
           )}
-          {running && emulated?.emulator === 'retroarch' && (
+          {running && (emulated?.emulator === 'retroarch' || emulated?.emulator === 'pcsx2') && (
             <p className="detail-note">
-              No controle: segure <b>Create</b> + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot, +
-              Options abre o menu do RetroArch.
+              No controle: segure <b>Create</b> + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot
+              {emulated.emulator === 'retroarch' ? ', + Options abre o menu do RetroArch' : ''}.
             </p>
           )}
           {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}

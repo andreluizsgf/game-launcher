@@ -43,10 +43,11 @@ export function App() {
     onOverlayOpened: (runningId) => {
       setTab('games')
       lib.focusGame(runningId)
-      // Emulated in RetroArch: straight to its in-game menu (save/load state, fast-forward).
+      // Emulated (RetroArch, PCSX2): straight to its in-game menu (save/load state, fast-forward).
       const running = lib.games.find((g) => g.id === runningId)
-      const retro = systemById(running?.platform)?.emulator === 'retroarch'
-      setOverlay(retro ? { kind: 'detail', gameId: runningId } : { kind: 'none' })
+      const emulator = systemById(running?.platform)?.emulator
+      const menu = emulator === 'retroarch' || emulator === 'pcsx2'
+      setOverlay(menu ? { kind: 'detail', gameId: runningId } : { kind: 'none' })
     }
   })
 
@@ -178,12 +179,15 @@ export function App() {
             await lib.reload(g.id)
           }}
           onEmulatorAction={async (g, action) => {
+            // PCSX2 takes these as hotkeys: its window needs the focus back first.
+            const pcsx2 = systemById(g.platform)?.emulator === 'pcsx2'
+            if (pcsx2) await session.resume()
             const res = await window.api.emulatorAction(g.id, action)
             if (!res.ok) return notify(res.error)
             if (action === 'saveState') notify('Estado salvo')
             else if (action === 'loadState') {
               notify('Estado carregado')
-              session.resume()
+              if (!pcsx2) session.resume()
             } else if (action === 'fastForward') notify('Velocidade alternada')
           }}
           onStoreInstall={async (g) => {

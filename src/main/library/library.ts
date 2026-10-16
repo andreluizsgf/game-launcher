@@ -1,4 +1,4 @@
-import { shell } from 'electron'
+import { app, shell } from 'electron'
 import { mkdirSync, promises as fs, writeFileSync } from 'fs'
 import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
@@ -7,6 +7,7 @@ import { titlesMatch } from '@shared/titleKey'
 import { download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
 import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/launch'
+import { pcsx2Action, preparePcsx2 } from '../emulators/pcsx2'
 import { sendRetroArch } from '../emulators/retroarchCmd'
 import { scanRoms } from '../emulators/scan'
 import { gameFolderOf } from '../downloads/match'
@@ -111,12 +112,15 @@ export class Library {
     await pool([...steamJobs, ...epicJobs], 6)
   }
 
-  /** In-game menu of an emulated game: commands to the RetroArch it's running in. */
+  /** In-game menu of an emulated game: RetroArch network commands, or PCSX2 hotkeys. */
   async emulatorAction(gameId: number, action: EmulatorAction): Promise<void> {
     const game = this.d.repo.get(gameId)
     if (this.d.runner.current() !== gameId) throw new Error('O jogo não está rodando')
-    if (systemById(game?.platform)?.emulator !== 'retroarch') throw new Error('Só disponível no RetroArch')
-    await sendRetroArch(action)
+    const emulator = systemById(game?.platform)?.emulator
+    if (emulator === 'retroarch') return sendRetroArch(action)
+    const exe = emulator === 'pcsx2' ? emulatorPath(this.d.settings, 'pcsx2') : null
+    if (!exe) throw new Error('Não disponível neste emulador')
+    await pcsx2Action(exe, action)
   }
 
   /** Not-installed Steam/Epic game: the store's install dialog. */
@@ -157,6 +161,13 @@ export class Library {
     if (!system) throw new Error('Sistema desconhecido')
     const exe = emulatorPath(this.d.settings, system.emulator)
     if (!exe) throw missingEmulator(system.emulator)
+    if (system.emulator === 'pcsx2') {
+      try {
+        preparePcsx2(exe, app.getPath('documents'))
+      } catch (err) {
+        console.warn('[pcsx2] could not apply settings', err)
+      }
+    }
     let overrides: string | undefined
     if (system.emulator === 'retroarch') {
       // Next to the art cache, in the app's data folder.
