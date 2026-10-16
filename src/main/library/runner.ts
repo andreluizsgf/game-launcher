@@ -2,6 +2,7 @@ import { execFile, spawn } from 'child_process'
 import { shell } from 'electron'
 import { dirname, sep } from 'path'
 import type { Game } from '@shared/types'
+import { focusWindowOf } from './focusWindow'
 
 export interface RunnerHooks {
   /** Marco 2: activates the controller profile in the input helper. */
@@ -121,6 +122,7 @@ export class Runner {
       const child = spawn(exe!, args, { cwd: dirname(exe!), detached: true, stdio: 'ignore' })
       child.on('error', (e) => console.error('[runner] spawn error', e))
       child.unref()
+      if (child.pid) focusWindowOf(child.pid)
     }
     this.hooks.onStart(game, startedAt)
 

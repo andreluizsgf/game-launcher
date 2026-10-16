@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EMULATOR_NAME, systemById } from '@shared/systems'
 import type { DownloadInfo, EmulatorAction, Game, GameAchievements } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
@@ -143,6 +143,7 @@ export function GameDetail(props: Props) {
     { id: 'back', label: 'Voltar' }
   ]
   const [sel, setSel] = useState(0)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const run = (it: Item) => {
     if (it.disabled) return
@@ -169,9 +170,10 @@ export function GameDetail(props: Props) {
 
   useInput((a) => {
     if (a === 'back' || a === 'details') return onClose()
-    if (a === 'left' || a === 'right') setConfirm(null)
+    if (a === 'left' || a === 'right' || a === 'up' || a === 'down') setConfirm(null)
     if (a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
+    if (a === 'up' || a === 'down') setSel((s) => rowNeighbor(menuRef.current, s, a === 'up' ? -1 : 1))
     if (a === 'confirm') run(items[sel])
   }, !tgOpen && !achOpen)
 
@@ -260,7 +262,7 @@ export function GameDetail(props: Props) {
                   : (game.exeOverride ?? game.exePath ?? game.installerPath ?? 'Nenhum executável encontrado')}
             </p>
           )}
-          <div className="menu">
+          <div className="menu" ref={menuRef}>
             {items.map((it, i) => (
               <button
                 key={it.id}
@@ -297,4 +299,28 @@ export function GameDetail(props: Props) {
       )}
     </div>
   )
+}
+
+/**
+ * The menu wraps into rows: the button in the row above/below closest to the focused one's center, or
+ * the same one when there is no such row.
+ */
+function rowNeighbor(menu: HTMLDivElement | null, current: number, dir: -1 | 1): number {
+  const buttons = menu ? [...menu.children] : []
+  const from = buttons[current]?.getBoundingClientRect()
+  if (!from) return current
+  const center = from.left + from.width / 2
+  let best = current
+  let bestScore = Infinity
+  buttons.forEach((b, i) => {
+    const r = b.getBoundingClientRect()
+    const dy = (r.top - from.top) * dir
+    if (dy < from.height / 2) return // same row or the wrong way
+    const score = dy * 1000 + Math.abs(r.left + r.width / 2 - center)
+    if (score < bestScore) {
+      bestScore = score
+      best = i
+    }
+  })
+  return best
 }

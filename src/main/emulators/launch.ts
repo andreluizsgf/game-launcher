@@ -64,6 +64,9 @@ export const RETROARCH_CMD_PORT = 55355
  */
 export const RETROARCH_OVERRIDES =
   [
+    // Borderless fullscreen: survives focus changes (the launcher's PS menu) instead of dropping to a window.
+    'video_fullscreen = "true"',
+    'video_windowed_fullscreen = "true"',
     'input_joypad_driver = "sdl2"',
     'input_autodetect_enable = "true"',
     ...[1, 2, 3, 4].map((p) => `input_player${p}_analog_dpad_mode = "1"`),
