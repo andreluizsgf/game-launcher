@@ -23,6 +23,7 @@ const api: LauncherApi = {
   installGame: (id) => ipcRenderer.invoke('game:install', id),
   cleanInstaller: (id) => ipcRenderer.invoke('game:cleanInstaller', id),
   storeInstall: (id) => ipcRenderer.invoke('game:storeInstall', id),
+  emulatorAction: (id, action) => ipcRenderer.invoke('game:emulatorAction', id, action),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   setIgdbSecret: (secret) => ipcRenderer.invoke('settings:setIgdbSecret', secret),

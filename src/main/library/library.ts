@@ -2,11 +2,12 @@ import { shell } from 'electron'
 import { mkdirSync, promises as fs, writeFileSync } from 'fs'
 import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
-import type { ScanResult } from '@shared/types'
+import type { EmulatorAction, ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
 import { download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
 import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/launch'
+import { sendRetroArch } from '../emulators/retroarchCmd'
 import { scanRoms } from '../emulators/scan'
 import { gameFolderOf } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
@@ -108,6 +109,14 @@ export class Library {
       }
     })
     await pool([...steamJobs, ...epicJobs], 6)
+  }
+
+  /** In-game menu of an emulated game: commands to the RetroArch it's running in. */
+  async emulatorAction(gameId: number, action: EmulatorAction): Promise<void> {
+    const game = this.d.repo.get(gameId)
+    if (this.d.runner.current() !== gameId) throw new Error('O jogo não está rodando')
+    if (systemById(game?.platform)?.emulator !== 'retroarch') throw new Error('Só disponível no RetroArch')
+    await sendRetroArch(action)
   }
 
   /** Not-installed Steam/Epic game: the store's install dialog. */

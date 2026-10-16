@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { systemById } from '@shared/systems'
 import type { Game, Settings as S, StoreGame } from '@shared/types'
 import { useGameSession } from './app/useGameSession'
 import { useInputDevices } from './app/useInputDevices'
@@ -40,9 +41,12 @@ export function App() {
     notify,
     reload: lib.reload,
     onOverlayOpened: (runningId) => {
-      setOverlay({ kind: 'none' })
       setTab('games')
       lib.focusGame(runningId)
+      // Emulated in RetroArch: straight to its in-game menu (save/load state, fast-forward).
+      const running = lib.games.find((g) => g.id === runningId)
+      const retro = systemById(running?.platform)?.emulator === 'retroarch'
+      setOverlay(retro ? { kind: 'detail', gameId: runningId } : { kind: 'none' })
     }
   })
 
@@ -172,6 +176,15 @@ export function App() {
             if (!res.ok) return notify(res.error)
             notify('Instalador na Lixeira')
             await lib.reload(g.id)
+          }}
+          onEmulatorAction={async (g, action) => {
+            const res = await window.api.emulatorAction(g.id, action)
+            if (!res.ok) return notify(res.error)
+            if (action === 'saveState') notify('Estado salvo')
+            else if (action === 'loadState') {
+              notify('Estado carregado')
+              session.resume()
+            } else if (action === 'fastForward') notify('Velocidade alternada')
           }}
           onStoreInstall={async (g) => {
             const res = await window.api.storeInstall(g.id)

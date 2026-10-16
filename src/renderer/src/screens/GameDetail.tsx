@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { EMULATOR_NAME, systemById } from '@shared/systems'
-import type { DownloadInfo, Game, GameAchievements } from '@shared/types'
+import type { DownloadInfo, EmulatorAction, Game, GameAchievements } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
 import { formatDate, formatDownload, formatPlaytime } from '../format'
@@ -31,6 +31,8 @@ interface Props {
   onCleanInstaller(g: Game): void
   /** Owned on Steam/Epic, not installed: the store's install dialog. */
   onStoreInstall(g: Game): void
+  /** Running in RetroArch: save/load state, fast-forward. */
+  onEmulatorAction(g: Game, action: EmulatorAction): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
@@ -43,6 +45,7 @@ type Item = {
     | 'cleanInstaller'
     | 'storeInstall'
     | 'resume'
+    | EmulatorAction
     | 'stop'
     | 'achievements'
     | 'telegram'
@@ -57,7 +60,8 @@ type Item = {
 
 export function GameDetail(props: Props) {
   const { game, running, installing, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop } = props
-  const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onIdentify, onRemove, onClose } = props
+  const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onEmulatorAction, onIdentify, onRemove, onClose } =
+    props
   // Destructive items need a second press.
   const [confirm, setConfirm] = useState<'stop' | 'uninstall' | 'cleanInstaller' | null>(null)
   const [achievements, setAchievements] = useState<GameAchievements | null>(null)
@@ -86,6 +90,13 @@ export function GameDetail(props: Props) {
     ...(running
       ? [
           { id: 'resume', label: 'Voltar ao jogo' } as Item,
+          ...(emulated?.emulator === 'retroarch'
+            ? ([
+                { id: 'saveState', label: 'Salvar estado' },
+                { id: 'loadState', label: 'Carregar estado' },
+                { id: 'fastForward', label: 'Acelerar · liga/desliga' }
+              ] as Item[])
+            : []),
           {
             id: 'stop',
             label: confirm === 'stop' ? 'Confirmar: fechar jogo' : 'Fechar jogo',
@@ -139,6 +150,9 @@ export function GameDetail(props: Props) {
     else if (it.id === 'install') onInstall(game)
     else if (it.id === 'storeInstall') onStoreInstall(game)
     else if (it.id === 'resume') onResume()
+    else if (it.id === 'saveState' || it.id === 'loadState' || it.id === 'fastForward' || it.id === 'menu') {
+      onEmulatorAction(game, it.id)
+    }
     else if (it.id === 'stop' || it.id === 'uninstall' || it.id === 'cleanInstaller') {
       if (confirm !== it.id) return setConfirm(it.id)
       setConfirm(null)
@@ -209,6 +223,12 @@ export function GameDetail(props: Props) {
             <p className="detail-note">
               Esse download é um instalador. Escolha <b>Instalar</b>: ele já vem apontando pra pasta{' '}
               <code>Jogo</code> dentro da pasta do jogo.
+            </p>
+          )}
+          {running && emulated?.emulator === 'retroarch' && (
+            <p className="detail-note">
+              No controle: segure <b>Create</b> + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot, +
+              Options abre o menu do RetroArch.
             </p>
           )}
           {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}

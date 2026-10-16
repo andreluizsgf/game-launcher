@@ -140,3 +140,19 @@ describe('launchArgs', () => {
     expect(() => launchArgs(systemById('gba')!, join(ra, 'retroarch.exe'), 'x.gba')).toThrow(/mgba/)
   })
 })
+
+describe('RetroArch commands', () => {
+  it('sends the command to the local network command port', async () => {
+    const { createSocket } = await import('dgram')
+    const { sendRetroArch } = await import('./retroarchCmd')
+    const { RETROARCH_CMD_PORT, RETROARCH_OVERRIDES } = await import('./launch')
+    expect(RETROARCH_OVERRIDES).toContain(`network_cmd_port = "${RETROARCH_CMD_PORT}"`)
+    expect(RETROARCH_OVERRIDES).toContain('input_player1_analog_dpad_mode = "1"')
+    const server = createSocket('udp4')
+    const got = new Promise<string>((resolve) => server.on('message', (m) => resolve(m.toString())))
+    await new Promise<void>((r) => server.bind(RETROARCH_CMD_PORT, '127.0.0.1', r))
+    await sendRetroArch('saveState')
+    expect(await got).toBe('SAVE_STATE')
+    server.close()
+  })
+})

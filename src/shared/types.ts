@@ -3,6 +3,9 @@ import type { EmulatorId } from './systems'
 export type InputMode = 'auto' | 'xinput' | 'kbm' | 'native'
 
 /** Where an installed game comes from: a folder in the games folder, or a store's own library. */
+/** In-game menu actions for emulated games (RetroArch). */
+export type EmulatorAction = 'saveState' | 'loadState' | 'fastForward' | 'menu'
+
 export type GameSource = 'folder' | 'steam' | 'epic' | 'emulator'
 
 export interface Game {
@@ -265,6 +268,8 @@ export interface LauncherApi {
   cleanInstaller(gameId: number): Promise<Result<null>>
   /** Opens Steam/Epic's install dialog for an owned game that isn't installed. */
   storeInstall(gameId: number): Promise<Result<null>>
+  /** Save/load state, fast-forward… on the running RetroArch game. */
+  emulatorAction(gameId: number, action: EmulatorAction): Promise<Result<null>>
   getSettings(): Promise<Settings>
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>

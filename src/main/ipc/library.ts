@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import type { GameAchievements } from '@shared/types'
+import type { EmulatorAction, GameAchievements } from '@shared/types'
 import { mockSections } from '../catalog/storeMock'
 import { bringToFront, getOutOfTheWay } from '../window'
 import type { IpcContext } from './context'
@@ -25,6 +25,7 @@ export function registerLibrary({ repo, library, catalog, store, awn, settings, 
   })
   handle('game:cleanInstaller', (gameId: number) => library.cleanInstaller(gameId))
   handle('game:storeInstall', (gameId: number) => library.storeInstall(gameId))
+  handle('game:emulatorAction', (gameId: number, action: EmulatorAction) => library.emulatorAction(gameId, action))
 
   handle('catalog:search', (query: string, platform?: string | null) => catalog.search(query, platform))
   handle('catalog:add', (igdbId: number) => catalog.add(igdbId))
