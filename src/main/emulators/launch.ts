@@ -50,8 +50,18 @@ export function detectEmulator(id: EmulatorId, romsRoot: string | null): string 
   return null
 }
 
-/** Executable + arguments that boot `rom` straight into the game, fullscreen and without the emulator's UI. */
-export function launchArgs(system: GameSystem, emulatorExe: string, rom: string): string[] {
+/**
+ * RetroArch settings layered over the user's config on every launch. Its default Windows pad drivers
+ * (xinput/dinput) miss the DualSense, and over Bluetooth Steam switches it into a report mode dinput can't
+ * read at all; SDL2 handles it in every mode and has autoconfig profiles for it.
+ */
+export const RETROARCH_OVERRIDES = ['input_joypad_driver = "sdl2"', 'input_autodetect_enable = "true"', ''].join('\n')
+
+/**
+ * Arguments that boot `rom` straight into the game, fullscreen and without the emulator's UI.
+ * `retroarchConfig`: a file with RETROARCH_OVERRIDES, appended to RetroArch's own config.
+ */
+export function launchArgs(system: GameSystem, emulatorExe: string, rom: string, retroarchConfig?: string): string[] {
   switch (system.emulator) {
     case 'pcsx2':
       return ['-batch', '-nogui', '-fullscreen', '--', rom]
@@ -67,7 +77,7 @@ export function launchArgs(system: GameSystem, emulatorExe: string, rom: string)
           `Falta o core de ${system.name} no RetroArch. Abra o RetroArch → Online Updater → Core Downloader e baixe "${system.cores?.[0]}".`
         )
       }
-      return ['-L', core, '-f', rom]
+      return ['-L', core, '-f', ...(retroarchConfig ? [`--appendconfig=${retroarchConfig}`] : []), rom]
     }
   }
 }

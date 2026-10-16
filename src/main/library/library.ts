@@ -1,12 +1,12 @@
 import { shell } from 'electron'
-import { mkdirSync, promises as fs } from 'fs'
+import { mkdirSync, promises as fs, writeFileSync } from 'fs'
 import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
 import type { ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
 import { download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
-import { launchArgs, missingEmulator } from '../emulators/launch'
+import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/launch'
 import { scanRoms } from '../emulators/scan'
 import { gameFolderOf } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
@@ -148,7 +148,14 @@ export class Library {
     if (!system) throw new Error('Sistema desconhecido')
     const exe = emulatorPath(this.d.settings, system.emulator)
     if (!exe) throw missingEmulator(system.emulator)
-    await this.d.runner.launch(game, { exe, args: launchArgs(system, exe, game.folder), watch: dirname(exe) })
+    let overrides: string | undefined
+    if (system.emulator === 'retroarch') {
+      // Next to the art cache, in the app's data folder.
+      overrides = join(dirname(this.d.artDir), 'retroarch-overrides.cfg')
+      writeFileSync(overrides, RETROARCH_OVERRIDES)
+    }
+    const args = launchArgs(system, exe, game.folder, overrides)
+    await this.d.runner.launch(game, { exe, args, watch: dirname(exe) })
   }
 
   async uninstall(gameId: number): Promise<void> {

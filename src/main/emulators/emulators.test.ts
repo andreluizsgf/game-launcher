@@ -134,6 +134,9 @@ describe('launchArgs', () => {
       '-f',
       'smw.sfc'
     ])
+    expect(launchArgs(snes, join(ra, 'retroarch.exe'), 'smw.sfc', 'C:/gl/ra.cfg')).toContain(
+      '--appendconfig=C:/gl/ra.cfg'
+    )
     expect(() => launchArgs(systemById('gba')!, join(ra, 'retroarch.exe'), 'x.gba')).toThrow(/mgba/)
   })
 })
