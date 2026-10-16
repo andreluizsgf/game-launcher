@@ -125,7 +125,9 @@ DualSense por **USB ou Bluetooth** (pareie pelo Windows: segure **PS + Create** 
 | Detalhes do jogo | △ | `T` |
 | Adicionar jogo (busca) | □ | `S` |
 | Configurações | OPTIONS | `O` |
-| Trocar aba / prateleira | L1 / R1 | `Q` / `E` |
+| Trocar aba (Jogos / Loja) | L1 / R1 | `Q` / `E` |
+| Trocar prateleira (Instalados / Emuladores / Na biblioteca…) | L2 / R2 | `Shift+Tab` / `Tab` |
+| Voltar pro topo da lista | ○ | `Esc` |
 | Overlay / menu de energia | PS | `Ctrl+Shift+G` (durante o jogo) |
 
 O botão **PS**: com um jogo aberto, mostra o launcher por cima (dá pra voltar ao jogo ou fechá-lo); na tela inicial, abre o menu de energia (suspender, reiniciar, desligar, fechar o app); em outras telas, volta pro início.

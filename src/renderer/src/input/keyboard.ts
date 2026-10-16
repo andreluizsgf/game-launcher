@@ -52,7 +52,9 @@ export function startKeyboard(): () => void {
         return sink({ kind: 'char', char: e.key })
       }
     }
-    const a = NAV_KEYS[e.key] ?? (sink ? undefined : LETTER_KEYS[e.key.toLowerCase()])
+    // Tab / Shift+Tab: next / previous Home shelf (the R2 / L2 of the keyboard).
+    const tab = e.key === 'Tab' && !sink ? (e.shiftKey ? 'triggerLeft' : 'submit') : undefined
+    const a = tab ?? NAV_KEYS[e.key] ?? (sink ? undefined : LETTER_KEYS[e.key.toLowerCase()])
     if (!a) return
     e.preventDefault()
     inputBus.emit(a)

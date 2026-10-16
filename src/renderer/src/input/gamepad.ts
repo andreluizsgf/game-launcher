@@ -10,6 +10,7 @@ const BUTTONS: Record<number, Action> = {
   3: 'details', // △
   4: 'pageLeft', // L1
   5: 'pageRight', // R1
+  6: 'triggerLeft', // L2
   7: 'submit', // R2
   9: 'options', // Options
   12: 'up',

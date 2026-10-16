@@ -81,6 +81,10 @@ export function LibraryGrid(props: Props) {
     if (a === 'secondary') return onSearch()
     if (a === 'pageLeft') return onTab(-1)
     if (a === 'pageRight') return onTab(1)
+    if (a === 'triggerLeft') return onShelf(-1)
+    if (a === 'submit') return onShelf(1)
+    // ○ deep in the grid: back to the top first; at the top it returns to a running game.
+    if (a === 'back' && zone === 'grid' && index > 0) return select(0)
     if (a === 'back' && runningId != null) return onResume()
     if (zone === 'filters') {
       if (a === 'up') return onShelf(-1)

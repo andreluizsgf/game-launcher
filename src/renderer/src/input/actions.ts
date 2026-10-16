@@ -7,7 +7,10 @@ export type Action =
   | 'back'
   | 'details'
   | 'secondary'
+  /** R2: submits text fields; on the Home, next shelf. */
   | 'submit'
+  /** L2: previous shelf on the Home. */
+  | 'triggerLeft'
   | 'options'
   | 'pageLeft'
   | 'pageRight'

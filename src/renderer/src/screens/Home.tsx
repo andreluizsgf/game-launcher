@@ -4,6 +4,7 @@ import type { DownloadInfo, Game } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { GameArt } from '../components/GameArt'
 import { formatDownload, formatPlaytime } from '../format'
+import { useInputMode } from '../input/mode'
 import { useInput } from '../input/useInput'
 import { defaultFilter, type GridFilter } from '../library/gridFilter'
 import type { Shelf } from '../library/shelves'
@@ -51,6 +52,7 @@ export function Home(props: Props) {
   const clamp = (i: number) => Math.max(0, Math.min(games.length - 1, i))
   // Installed games keep the PS5 home row; every other shelf is a filterable grid.
   const gridMode = shelf !== 'installed'
+  const mode = useInputMode()
   const [filters, setFilters] = useState<Partial<Record<Shelf, GridFilter>>>({})
 
   useInput((a) => {
@@ -59,8 +61,8 @@ export function Home(props: Props) {
     if (a === 'pageLeft') return onTab(-1)
     if (a === 'pageRight') return onTab(1)
     if (a === 'back' && runningId != null) return onResume()
-    if (a === 'up') return onShelf(-1)
-    if (a === 'down') return onShelf(1)
+    if (a === 'up' || a === 'triggerLeft') return onShelf(-1)
+    if (a === 'down' || a === 'submit') return onShelf(1)
     if (!game) return
     if (a === 'left') setFocus(clamp(focus - 1))
     else if (a === 'right') setFocus(clamp(focus + 1))
@@ -111,7 +113,7 @@ export function Home(props: Props) {
           <span className="shelf-count">{s.count}</span>
         </button>
       ))}
-      <span className="shelf-hint">↑↓</span>
+      <span className="shelf-hint">{mode === 'pad' ? 'L2 · R2' : 'Tab'}</span>
     </nav>
   )
 
