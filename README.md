@@ -149,7 +149,11 @@ O botão **PS**: com um jogo aberto, mostra o launcher por cima (dá pra voltar 
 
 ## 5. Desenvolvimento
 
-Electron + React + TypeScript. Detalhes da stack, estrutura e fluxo de release: veja os comentários em `src/` e `.github/workflows/release.yml`.
+Electron + React + TypeScript. Documentação técnica:
+
+- [CLAUDE.md](CLAUDE.md): comandos, mapa do código, convenções e receitas para novas integrações (lojas, emuladores, IPC, configurações).
+- [docs/architecture.md](docs/architecture.md): processos, modelo de dados, rescan, ciclo de vida de um jogo, downloads.
+- [docs/adr/](docs/adr/README.md): decisões de arquitetura e o porquê de cada uma.
 
 ```bash
 npm ci                 # Node 22 (.nvmrc)
