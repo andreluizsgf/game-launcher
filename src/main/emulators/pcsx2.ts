@@ -56,6 +56,13 @@ export function iniAdd(text: string, section: string, key: string, value: string
   return render(lines)
 }
 
+/** Removes the lines of `section` whose value matches `pred`. */
+export function iniRemove(text: string, section: string, pred: (key: string, value: string) => boolean): string {
+  const lines = parse(text)
+  const kept = lines.filter((l) => !(l.section === section && l.key && pred(l.key, l.value)))
+  return kept.length === lines.length ? text : render(kept)
+}
+
 export const iniValues = (text: string, section: string) =>
   parse(text).filter((l) => l.section === section && l.key) as Array<Line & { key: string }>
 
@@ -92,14 +99,20 @@ const PAD1: Record<string, string> = {
   SmallMotor: 'SDL-0/SmallMotor'
 }
 
-/** Pad chords behind Create (same layout as RetroArch) plus the keys the launcher's PS menu presses. */
+/**
+ * Pad chords behind the touchpad click (same layout as RetroArch) plus the keys the launcher's PS menu presses.
+ * The PS2 has no touchpad, so it's never a game button (Select/Create is, all the time).
+ */
+const MOD = 'SDL-0/Touchpad'
 const HOTKEYS: Record<string, string[]> = {
-  SaveStateToSlot: ['SDL-0/Back & SDL-0/RightShoulder', 'Keyboard/F1'],
-  LoadStateFromSlot: ['SDL-0/Back & SDL-0/LeftShoulder', 'Keyboard/F3'],
-  ToggleTurbo: ['SDL-0/Back & SDL-0/+RightTrigger', 'Keyboard/Pause'],
-  NextSaveStateSlot: ['SDL-0/Back & SDL-0/DPadRight'],
-  PreviousSaveStateSlot: ['SDL-0/Back & SDL-0/DPadLeft']
+  SaveStateToSlot: [`${MOD} & SDL-0/RightShoulder`, 'Keyboard/F1'],
+  LoadStateFromSlot: [`${MOD} & SDL-0/LeftShoulder`, 'Keyboard/F3'],
+  ToggleTurbo: [`${MOD} & SDL-0/+RightTrigger`, 'Keyboard/Pause'],
+  NextSaveStateSlot: [`${MOD} & SDL-0/DPadRight`],
+  PreviousSaveStateSlot: [`${MOD} & SDL-0/DPadLeft`]
 }
+/** Chords older versions bound behind Create (Select in PS2 games). */
+const OLD_CHORD = /^SDL-0\/Back & /
 
 /** The keys above, as SendKeys sends them. */
 const ACTION_KEY: Partial<Record<EmulatorAction, string>> = {
@@ -117,6 +130,7 @@ export function applyPcsx2Settings(text: string): string {
   out = iniSet(out, 'InputSources', 'SDLControllerEnhancedMode', 'true')
   const padBound = iniValues(out, 'Pad1').some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
   if (!padBound) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
+  out = iniRemove(out, 'Hotkeys', (k, v) => k in HOTKEYS && OLD_CHORD.test(v))
   for (const [k, values] of Object.entries(HOTKEYS)) for (const v of values) out = iniAdd(out, 'Hotkeys', k, v)
   return out
 }

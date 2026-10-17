@@ -58,8 +58,9 @@ export const RETROARCH_CMD_PORT = 55355
  * - SDL2 pad driver: the default Windows ones (xinput/dinput) miss the DualSense, and over Bluetooth Steam
  *   switches it into a report mode dinput can't read; SDL2 handles every mode and autoconfigures it.
  * - Left stick drives the d-pad on digital-only systems (mode 1 leaves real analog games alone).
- * - Pad hotkeys, all behind Create (PS stays the launcher's): R1 save, L1 load, R2 fast-forward,
- *   ←/→ state slot, Options RetroArch's menu. Numbers are SDL GameController buttons/axes.
+ * - Pad hotkeys, all behind the touchpad click (PS stays the launcher's; Create is Select, a game button):
+ *   R1 save, L1 load, R2 fast-forward, ←/→ state slot, Options RetroArch's menu.
+ *   Numbers are SDL GameController buttons/axes (20 = touchpad).
  * - Network commands on localhost, for the launcher's in-game menu.
  */
 export const RETROARCH_OVERRIDES =
@@ -70,7 +71,7 @@ export const RETROARCH_OVERRIDES =
     'input_joypad_driver = "sdl2"',
     'input_autodetect_enable = "true"',
     ...[1, 2, 3, 4].map((p) => `input_player${p}_analog_dpad_mode = "1"`),
-    'input_enable_hotkey_btn = "4"',
+    'input_enable_hotkey_btn = "20"',
     'input_save_state_btn = "10"',
     'input_load_state_btn = "9"',
     'input_toggle_fast_forward_axis = "+5"',

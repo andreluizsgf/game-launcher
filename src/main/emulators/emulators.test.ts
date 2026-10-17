@@ -148,6 +148,7 @@ describe('RetroArch commands', () => {
     const { RETROARCH_CMD_PORT, RETROARCH_OVERRIDES } = await import('./launch')
     expect(RETROARCH_OVERRIDES).toContain(`network_cmd_port = "${RETROARCH_CMD_PORT}"`)
     expect(RETROARCH_OVERRIDES).toContain('input_player1_analog_dpad_mode = "1"')
+    expect(RETROARCH_OVERRIDES).toContain('input_enable_hotkey_btn = "20"')
     const server = createSocket('udp4')
     const got = new Promise<string>((resolve) => server.on('message', (m) => resolve(m.toString())))
     await new Promise<void>((r) => server.bind(RETROARCH_CMD_PORT, '127.0.0.1', r))

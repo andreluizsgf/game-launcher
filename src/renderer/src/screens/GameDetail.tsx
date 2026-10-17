@@ -229,7 +229,7 @@ export function GameDetail(props: Props) {
           )}
           {running && (emulated?.emulator === 'retroarch' || emulated?.emulator === 'pcsx2') && (
             <p className="detail-note">
-              No controle: segure <b>Create</b> + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot
+              No controle: segure o <b>touchpad</b> (clique) + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot
               {emulated.emulator === 'retroarch' ? ', + Options abre o menu do RetroArch' : ''}.
             </p>
           )}
