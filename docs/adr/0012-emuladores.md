@@ -45,7 +45,7 @@ sem configurar cada emulador à mão.
   - Remove os atalhos antigos que o próprio launcher gravou.
 - **RPCS3:** só `--no-gui --fullscreen`. Não há configuração injetada.
 
-### Atalhos no controle (segurando o clique do touchpad)
+### Atalhos no controle (segurando o Create)
 
 | Botão | Ação |
 |---|---|
@@ -55,13 +55,18 @@ sem configurar cada emulador à mão.
 | ←/→ | troca o slot |
 | Options | menu do RetroArch |
 
-Por que o touchpad:
+Por que Create + touchpad como Select:
 
 - O botão **PS** é do launcher (ADR 0008).
-- O **Create** era o modificador até a v0.12.0, mas é o Select dos jogos de PS1/PS2 e era apertado o tempo
-  todo, disparando ações sem querer.
-- O touchpad não existe nos consoles emulados.
-- Nomes usados: SDL `Touchpad` no PCSX2 e botão `20` no RetroArch.
+- Até a v0.12.0 o Create era o modificador **e** o Select do jogo. Como o Select é apertado o tempo todo em
+  PS1/PS2, isso disparava ações sem querer.
+- Na v0.12.1 os atalhos foram para o touchpad. O usuário preferiu o contrário: o **touchpad vira o Select** do
+  jogo e o **Create fica só para os atalhos** (v0.12.2).
+- **RetroArch:** `input_playerN_select_btn = "20"` (touchpad) e `input_enable_hotkey_btn = "4"` (Create).
+- **PCSX2:**
+  - `Pad1/Select = SDL-0/Touchpad`; um `Select = SDL-0/Back` deixado por versões anteriores é migrado;
+  - os chords dos atalhos usam `SDL-0/Back &`.
+- **RPCS3:** fica fora. O launcher não injeta configuração nele, então lá o Create continua sendo o Select.
 
 ### Menu in-game (botão PS)
 
@@ -79,7 +84,7 @@ O menu oferece *Salvar estado / Carregar estado / Acelerar / Fechar jogo*:
 - Mudanças nos formatos de config dos emuladores podem quebrar a injeção. Por isso ela é tolerante: falha vira
   aviso no log e o jogo abre mesmo assim.
 - Ainda **não validado em hardware real:**
-  - a numeração SDL dos botões no RetroArch, incluindo o touchpad;
+  - a numeração SDL dos botões no RetroArch, incluindo o touchpad como Select;
   - os nomes de atalho e o SendKeys do PCSX2;
   - o `--fullscreen` do RPCS3.
 - O launcher **não** baixa ROMs nem integra com sites de ROM. Ele trabalha com os arquivos que o usuário já tem.

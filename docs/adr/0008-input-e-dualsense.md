@@ -27,8 +27,8 @@ funcionar como alternativa, no dev e no PC.
   ele que abre o overlay (ADR 0007).
 - **Botões reservados:**
   - **PS** é do launcher e nunca é mapeado em emulador.
-  - Os atalhos de emulador ficam atrás do **clique do touchpad**, que não existe nos consoles emulados.
-  - Create/Select é botão de jogo e não serve de modificador (ADR 0012).
+  - Os atalhos de emulador ficam atrás do **Create**, e o Select dos jogos vai para o **clique do touchpad**,
+    que não existe nos consoles emulados. Assim, segurar o Create nunca chega ao jogo (ADR 0012).
 
 ## Consequências
 

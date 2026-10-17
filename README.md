@@ -79,9 +79,9 @@ PS3 pelo **RPCS3**, PS2 pelo **PCSX2** e retrô (NES, SNES, N64, GB/GBC/GBA, DS,
 3. **RetroArch**: baixe os cores em *Online Updater → Core Downloader* (ex.: Snes9x, mGBA, Genesis Plus GX, SwanStation, Mupen64Plus-Next). O app avisa qual falta.
 4. **RPCS3**: instale o firmware do PS3 nele uma vez. Jogos instalados dentro do RPCS3 (PSN/pkg) aparecem sozinhos.
 
-No RetroArch o launcher já liga o driver de controle SDL2 (DualSense funciona por Bluetooth e cabo) e o analógico como direcional nos consoles sem analógico. Atalhos no controle, segurando o **touchpad** (clique; o Create é o Select dos jogos, por isso fica livre): **R1** salva estado, **L1** carrega, **R2** acelera (liga/desliga), **←/→** troca o slot, **Options** abre o menu do RetroArch. O botão **PS** durante o jogo abre o menu com *Salvar estado / Carregar estado / Acelerar / Fechar jogo*.
+No RetroArch o launcher já liga o driver de controle SDL2 (DualSense funciona por Bluetooth e cabo) e o analógico como direcional nos consoles sem analógico. O **clique do touchpad** faz o papel do **Select** nos jogos, e o **Create** fica só pros atalhos. Segurando **Create**: **R1** salva estado, **L1** carrega, **R2** acelera (liga/desliga), **←/→** troca o slot, **Options** abre o menu do RetroArch. O botão **PS** durante o jogo abre o menu com *Salvar estado / Carregar estado / Acelerar / Fechar jogo*.
 
-No PCSX2 o launcher liga o SDL com o modo aprimorado do DualSense e, se a porta 1 ainda não tiver controle mapeado, mapeia o DualSense sozinho (um mapeamento feito à mão é mantido). Os mesmos atalhos com o **touchpad** (R1 salva, L1 carrega, R2 acelera, ←/→ slot) e o menu do **PS** funcionam no PCSX2.
+No PCSX2 o launcher liga o SDL com o modo aprimorado do DualSense e, se a porta 1 ainda não tiver controle mapeado, mapeia o DualSense sozinho (um mapeamento feito à mão é mantido). O touchpad como Select e os mesmos atalhos com **Create** (R1 salva, L1 carrega, R2 acelera, ←/→ slot) e o menu do **PS** funcionam no PCSX2.
 
 Os jogos ficam na prateleira **Emuladores**, com capa e ficha do IGDB do console certo. Jogar abre o emulador direto no jogo em tela cheia; tempo de jogo, overlay (botão PS) e "Fechar jogo" funcionam igual. Multi-disco: use um `.m3u` (aparece como um jogo só).
 

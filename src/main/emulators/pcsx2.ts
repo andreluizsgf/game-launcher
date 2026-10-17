@@ -68,7 +68,10 @@ export const iniValues = (text: string, section: string) =>
 
 // ---------- PCSX2 settings the launcher needs ----------
 
-/** What PCSX2's own "Automatic Mapping" writes for the first SDL pad (PS button left to the launcher). */
+/**
+ * What PCSX2's own "Automatic Mapping" writes for the first SDL pad, except: PS button left to the launcher,
+ * and Select on the touchpad click (Create is the hotkey modifier).
+ */
 const PAD1: Record<string, string> = {
   Type: 'DualShock2',
   Up: 'SDL-0/DPadUp',
@@ -79,7 +82,7 @@ const PAD1: Record<string, string> = {
   Circle: 'SDL-0/B',
   Cross: 'SDL-0/A',
   Square: 'SDL-0/X',
-  Select: 'SDL-0/Back',
+  Select: 'SDL-0/Touchpad',
   Start: 'SDL-0/Start',
   L1: 'SDL-0/LeftShoulder',
   L2: 'SDL-0/+LeftTrigger',
@@ -100,10 +103,10 @@ const PAD1: Record<string, string> = {
 }
 
 /**
- * Pad chords behind the touchpad click (same layout as RetroArch) plus the keys the launcher's PS menu presses.
- * The PS2 has no touchpad, so it's never a game button (Select/Create is, all the time).
+ * Pad chords behind Create (same layout as RetroArch) plus the keys the launcher's PS menu presses.
+ * Create only does hotkeys: the game's Select is on the touchpad click.
  */
-const MOD = 'SDL-0/Touchpad'
+const MOD = 'SDL-0/Back'
 const HOTKEYS: Record<string, string[]> = {
   SaveStateToSlot: [`${MOD} & SDL-0/RightShoulder`, 'Keyboard/F1'],
   LoadStateFromSlot: [`${MOD} & SDL-0/LeftShoulder`, 'Keyboard/F3'],
@@ -111,8 +114,8 @@ const HOTKEYS: Record<string, string[]> = {
   NextSaveStateSlot: [`${MOD} & SDL-0/DPadRight`],
   PreviousSaveStateSlot: [`${MOD} & SDL-0/DPadLeft`]
 }
-/** Chords older versions bound behind Create (Select in PS2 games). */
-const OLD_CHORD = /^SDL-0\/Back & /
+/** Chords v0.12.1 bound behind the touchpad. */
+const OLD_CHORD = /^SDL-0\/Touchpad & /
 
 /** The keys above, as SendKeys sends them. */
 const ACTION_KEY: Partial<Record<EmulatorAction, string>> = {
@@ -130,6 +133,10 @@ export function applyPcsx2Settings(text: string): string {
   out = iniSet(out, 'InputSources', 'SDLControllerEnhancedMode', 'true')
   const padBound = iniValues(out, 'Pad1').some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
   if (!padBound) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
+  // Pads mapped by older versions had Select on Create, which is now the hotkey modifier.
+  if (iniValues(out, 'Pad1').some((l) => l.key === 'Select' && l.value === MOD)) {
+    out = iniSet(out, 'Pad1', 'Select', PAD1.Select)
+  }
   out = iniRemove(out, 'Hotkeys', (k, v) => k in HOTKEYS && OLD_CHORD.test(v))
   for (const [k, values] of Object.entries(HOTKEYS)) for (const v of values) out = iniAdd(out, 'Hotkeys', k, v)
   return out

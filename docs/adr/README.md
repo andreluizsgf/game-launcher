@@ -21,7 +21,7 @@ Cada ADR registra uma decisão estrutural: o contexto, o que foi decidido e o qu
 | [0011](0011-steam-e-epic.md) | Steam e Epic sem APIs oficiais de launcher | aceita |
 | [0012](0012-emuladores.md) | Emuladores externos, ROMs por sistema, config injetada | aceita |
 | [0013](0013-integracao-windows-via-powershell.md) | Windows via PowerShell/CLI, stubs fora dele | aceita |
-| [0014](0014-distribuicao-e-atualizacao.md) | Código privado, releases públicos, auto-update | aceita |
+| [0014](0014-distribuicao-e-atualizacao.md) | Repos de código e de releases; auto-update | aceita |
 | [0015](0015-conquistas-via-awn.md) | Conquistas lidas do Achievement Watcher Next | aceita |
 | [0016](0016-instalar-repacks.md) | Repacks: instalar em `Jogo` e limpar o instalador | aceita |
 | [0017](0017-rejeitado-launcher-do-jogo.md) | Seletor de exe / launcher próprio do jogo | rejeitada |

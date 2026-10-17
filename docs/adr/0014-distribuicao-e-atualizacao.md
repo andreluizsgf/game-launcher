@@ -1,17 +1,18 @@
-# 0014 — Código privado, releases públicos e atualização automática
+# 0014 — Repo de código e repo de releases públicos; atualização automática
 
 - **Status:** aceita
 - **Data:** 2026-10-10
 
 ## Contexto
 
-O código deve ficar privado. O app instalado precisa se atualizar sozinho, mas o `electron-updater` com GitHub
+O código começou privado (o repo de releases separado existe por isso). O app instalado precisa se atualizar sozinho, mas o `electron-updater` com GitHub
 precisa ler os releases sem token.
 
 ## Decisão
 
 - **Repositórios:**
-  - `andreluizsgf/game-launcher`: código, **privado**.
+  - `andreluizsgf/game-launcher`: código. Era privado e virou **público** em 2026-10-17, porque o Actions em repo
+    privado consome a cota de minutos paga (Windows conta em dobro); em repo público não custa nada.
   - `andreluizsgf/game-launcher-releases`: só instaladores e README do usuário, **público**.
 - **CI** (`.github/workflows/release.yml`):
   - roda em tag `v*`, em `windows-2022` (o `windows-latest` traz um VS que o node-gyp ainda não detecta);
@@ -29,6 +30,6 @@ precisa ler os releases sem token.
 
 ## Consequências
 
-- Nada sensível pode ir para o repo de releases, nem no README de lá, que é uma cópia sem a seção de
-  desenvolvimento.
+- Os dois repos são públicos: nada sensível pode ir para nenhum deles (segredos ficam cifrados no PC, ADR 0005).
+  O repo de releases continua separado porque o app instalado busca atualizações nele.
 - Versões seguem semver simples. `isNewer` compara `x.y.z`.

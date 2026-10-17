@@ -110,8 +110,8 @@ Siga o formato de `platforms/steam.ts` e `platforms/epic.ts` (ADR 0011):
   - Ações in-game (salvar/carregar estado, acelerar) entram em `Library.emulatorAction` e na lista do
     `GameDetail`.
 - **Botões reservados:** o **PS** é do launcher e abre o menu in-game. Os atalhos de emulador ficam atrás do
-  **clique do touchpad** (`SDL-0/Touchpad`, botão SDL 20). Create/Select é botão de jogo e não pode ser
-  modificador.
+  **Create** (`SDL-0/Back`, botão SDL 4). O Select do jogo vai para o **clique do touchpad** (`SDL-0/Touchpad`,
+  botão SDL 20), para segurar o Create nunca chegar ao jogo.
 
 ### Nova tela ou input
 - Uma tela recebe input com `useInput(handler, active)`. Só o handler ativo mais recente recebe as ações (pilha).
@@ -136,7 +136,8 @@ repos/andreluizsgf/game-launcher-releases/contents/README.md`, passando o `sha` 
 
 ## Cuidados
 
-- Este repositório é **privado**. Não publique código nem segredos no repo de releases (que é público).
+- Este repositório é **público** (desde 2026-10-17; Actions sem custo). Nunca commite segredos, tokens nem dados
+  pessoais: tudo sensível fica cifrado no settings.json do usuário (ADR 0005).
 - Muita coisa só existe no Windows e **não foi validada em hardware real** por quem desenvolve no Mac:
   - foco de janela;
   - atalhos do RetroArch e do PCSX2 e o SendKeys;
