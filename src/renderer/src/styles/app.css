@@ -53,7 +53,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- home ---------- */
 .home { position: relative; z-index: 1; height: calc(100% - 70px); padding: 0 64px; }
-.row-viewport { height: calc(var(--tile-focused) + 60px); padding-top: 32px; overflow: visible; }
+.row-viewport { height: calc(var(--tile-focused) * 4 / 3 + 60px); padding-top: 32px; overflow: visible; }
 .row {
   display: flex; align-items: flex-start; gap: 16px;
   transition: transform 260ms var(--ease);
@@ -61,16 +61,17 @@ button { font: inherit; color: inherit; }
 }
 .tile {
   position: relative; flex: 0 0 auto;
-  width: var(--tile); height: var(--tile);
+  /* Box-art proportions, like the library grid: covers fill without cropping the logo. */
+  width: var(--tile); height: calc(var(--tile) * 4 / 3);
   border-radius: 14px; overflow: hidden;
   transition: width 220ms var(--ease), height 220ms var(--ease), box-shadow 220ms;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .tile.focused {
-  width: var(--tile-focused); height: var(--tile-focused);
+  width: var(--tile-focused); height: calc(var(--tile-focused) * 4 / 3);
   box-shadow: 0 0 0 3px var(--focus-ring), 0 14px 40px rgba(0, 0, 0, 0.6);
 }
-.tile-art { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+.tile-art { width: 100%; height: 100%; object-fit: cover; display: block; }
 .art-placeholder {
   display: grid; place-items: center;
   font-size: 44px; font-weight: 700; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.85);
