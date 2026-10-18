@@ -41,7 +41,8 @@ sem configurar cada emulador à mão.
     - portable: `<pasta do exe>/inis`;
     - normal: `Documentos\PCSX2\inis`, com fallback em `%APPDATA%\PCSX2`.
   - Liga o SDL com o modo aprimorado do DualSense e a pausa ao perder o foco (`UI/PauseOnFocusLoss`).
-  - Mapeia a porta 1 **só se ainda não houver controle mapeado**.
+  - Mapeia a porta 1 (`SDL-0`) e a porta 2 (`SDL-1`) **só se ainda não houver controle mapeado** nelas. Na porta 2
+    o Select fica no Create/View: os atalhos só escutam o controle 1, e o segundo controle pode não ter touchpad.
   - Acrescenta os atalhos, que aceitam múltiplos valores, sem duplicar.
   - Remove os atalhos antigos que o próprio launcher gravou.
 - **RPCS3:** só `--no-gui --fullscreen`. Não há configuração injetada.
@@ -63,7 +64,8 @@ Por que Create + touchpad como Select:
   PS1/PS2, isso disparava ações sem querer.
 - Na v0.12.1 os atalhos foram para o touchpad. O usuário preferiu o contrário: o **touchpad vira o Select** do
   jogo e o **Create fica só para os atalhos** (v0.12.2).
-- **RetroArch:** `input_playerN_select_btn = "20"` (touchpad) e `input_enable_hotkey_btn = "4"` (Create).
+- **RetroArch:** `input_player1_select_btn = "20"` (touchpad, só no jogador 1; os outros mantêm o Select do
+  autoconfig) e `input_enable_hotkey_btn = "4"` (Create).
 - **PCSX2:**
   - `Pad1/Select = SDL-0/Touchpad`; um `Select = SDL-0/Back` deixado por versões anteriores é migrado;
   - os chords dos atalhos usam `SDL-0/Back &`.

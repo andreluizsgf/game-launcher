@@ -51,6 +51,11 @@ describe('applyPcsx2Settings', () => {
     expect(pad).toEqual({ Type: 'DualShock2', Cross: 'SDL-0/A', Select: 'SDL-0/Touchpad' })
   })
 
+  it('maps the second pad on port 2, with Select on Create', () => {
+    const pad2 = Object.fromEntries(iniValues(applyPcsx2Settings(existing), 'Pad2').map((l) => [l.key, l.value]))
+    expect(pad2).toMatchObject({ Type: 'DualShock2', Cross: 'SDL-1/A', Select: 'SDL-1/Back', LUp: 'SDL-1/-LeftY' })
+  })
+
   it('keeps a port 1 mapping made by hand', () => {
     const mine = existing.replace('Type = DualShock2', 'Type = DualShock2\nCross = SDL-0/B')
     const out = applyPcsx2Settings(mine)

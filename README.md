@@ -81,7 +81,7 @@ PS3 pelo **RPCS3**, PS2 pelo **PCSX2** e retrô (NES, SNES, N64, GB/GBC/GBA, DS,
 
 No RetroArch o launcher já liga o driver de controle SDL2 (DualSense funciona por Bluetooth e cabo) e o analógico como direcional nos consoles sem analógico. O **clique do touchpad** faz o papel do **Select** nos jogos, e o **Create** fica só pros atalhos. Segurando **Create**: **R1** salva estado, **L1** carrega, **R2** acelera (liga/desliga), **←/→** troca o slot, **Options** abre o menu do RetroArch. O botão **PS** durante o jogo abre o menu com *Salvar estado / Carregar estado / Acelerar / Fechar jogo*.
 
-No PCSX2 o launcher liga o SDL com o modo aprimorado do DualSense e, se a porta 1 ainda não tiver controle mapeado, mapeia o DualSense sozinho (um mapeamento feito à mão é mantido). O touchpad como Select e os mesmos atalhos com **Create** (R1 salva, L1 carrega, R2 acelera, ←/→ slot) e o menu do **PS** funcionam no PCSX2.
+No PCSX2 o launcher liga o SDL com o modo aprimorado do DualSense e, se as portas 1 e 2 ainda não tiverem controle mapeado, mapeia o primeiro e o segundo controle sozinho (um mapeamento feito à mão é mantido). No segundo controle o Select continua no Create/View; os atalhos são só do controle 1. O touchpad como Select e os mesmos atalhos com **Create** (R1 salva, L1 carrega, R2 acelera, ←/→ slot) e o menu do **PS** funcionam no PCSX2.
 
 Os jogos ficam na prateleira **Emuladores**, com capa e ficha do IGDB do console certo. Jogar abre o emulador direto no jogo em tela cheia; tempo de jogo, overlay (botão PS) e "Fechar jogo" funcionam igual. Multi-disco: use um `.m3u` (aparece como um jogo só).
 

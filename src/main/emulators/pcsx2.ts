@@ -125,16 +125,27 @@ const ACTION_KEY: Partial<Record<EmulatorAction, string>> = {
 }
 
 /**
- * Applies the launcher's input setup to a PCSX2.ini: SDL with the DualSense enhanced mode, the pad on port 1
- * (only when it isn't bound to a controller yet — a mapping made by hand is kept) and the hotkeys.
+ * Port 2: the second SDL pad, same layout. Its Select stays on Create/View — hotkeys only listen to pad 1, and
+ * a second pad may not have a touchpad at all.
+ */
+const PAD2: Record<string, string> = Object.fromEntries(
+  Object.entries({ ...PAD1, Select: 'SDL-0/Back' }).map(([k, v]) => [k, v.replace(/^SDL-0\//, 'SDL-1/')])
+)
+
+const isBound = (text: string, section: string) =>
+  iniValues(text, section).some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
+
+/**
+ * Applies the launcher's input setup to a PCSX2.ini: SDL with the DualSense enhanced mode, the pads on ports 1
+ * and 2 (only when not bound to a controller yet — a mapping made by hand is kept) and the hotkeys.
  */
 export function applyPcsx2Settings(text: string): string {
   let out = iniSet(text, 'InputSources', 'SDL', 'true')
   out = iniSet(out, 'InputSources', 'SDLControllerEnhancedMode', 'true')
   // Paused while the launcher's PS menu is up; resumes when the menu gives focus back.
   out = iniSet(out, 'UI', 'PauseOnFocusLoss', 'true')
-  const padBound = iniValues(out, 'Pad1').some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
-  if (!padBound) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
+  if (!isBound(out, 'Pad1')) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
+  if (!isBound(out, 'Pad2')) for (const [k, v] of Object.entries(PAD2)) out = iniSet(out, 'Pad2', k, v)
   // Pads mapped by older versions had Select on Create, which is now the hotkey modifier.
   if (iniValues(out, 'Pad1').some((l) => l.key === 'Select' && l.value === MOD)) {
     out = iniSet(out, 'Pad1', 'Select', PAD1.Select)

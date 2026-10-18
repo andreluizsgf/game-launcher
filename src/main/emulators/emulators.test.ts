@@ -151,6 +151,7 @@ describe('RetroArch commands', () => {
     expect(RETROARCH_OVERRIDES).toContain('input_enable_hotkey_btn = "4"')
     expect(RETROARCH_OVERRIDES).toContain('pause_nonactive = "true"')
     expect(RETROARCH_OVERRIDES).toContain('input_player1_select_btn = "20"')
+    expect(RETROARCH_OVERRIDES).not.toContain('input_player2_select_btn')
     const server = createSocket('udp4')
     const got = new Promise<string>((resolve) => server.on('message', (m) => resolve(m.toString())))
     await new Promise<void>((r) => server.bind(RETROARCH_CMD_PORT, '127.0.0.1', r))
