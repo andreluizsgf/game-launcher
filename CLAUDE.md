@@ -119,9 +119,24 @@ Siga o formato de `platforms/steam.ts` e `platforms/epic.ts` (ADR 0011):
   `dualsense.ts` (HID) e `keyboard.ts` (atalho de teclado equivalente). Mantenha os três em sincronia.
 - Tudo precisa ser navegável só com o controle. O mouse é secundário.
 
+## Mudanças visuais: validar localmente antes de subir
+
+**Regra:** nada que mude a aparência (CSS, layout, telas, componentes, arte) vai para commit, tag ou release antes
+de o usuário aprovar rodando localmente. Cada release custa um build no CI, e a validação no PC só acontece
+depois da atualização automática; errar no visual custa um ciclo inteiro.
+
+1. Implemente e rode `npm run typecheck && npm test`.
+2. Abra o app para o usuário validar: `npm run dev` (ou `npm run dev:fixtures` se a biblioteca local não tiver o
+   caso). Para telas difíceis de alcançar, gere screenshots com `GL_SNAPSHOT` (ver Comandos) e mostre-os.
+   Teste também em janela pequena (1280×720), que é como o PC com escala de 150% enxerga a tela.
+3. Diga o que mudou e onde olhar. **Espere o OK explícito** antes de commitar e soltar a versão.
+4. Ajustes pedidos voltam ao passo 2.
+
+Mudanças sem efeito visual (lógica, integrações, docs) seguem direto para o release.
+
 ## Release
 
-Só quando o usuário pedir.
+Só quando o usuário pedir. Mudança visual só depois da validação local (seção acima).
 
 1. `npm version X.Y.Z --no-git-tag-version`
 2. Commit (terminando com a linha `Co-Authored-By` indicada pelo ambiente).
