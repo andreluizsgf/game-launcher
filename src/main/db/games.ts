@@ -295,6 +295,13 @@ export class GamesRepo {
       .run(coverPath, artPath, gameId)
   }
 
+  /** Swaps in newer art (a null keeps what's there). */
+  replaceArt(gameId: number, coverPath: string | null, artPath: string | null): void {
+    this.db
+      .prepare('UPDATE games SET cover_path = COALESCE(?, cover_path), art_path = COALESCE(?, art_path) WHERE id = ?')
+      .run(coverPath, artPath, gameId)
+  }
+
   addCatalog(meta: CatalogMeta): Game {
     const res = this.db
       .prepare(

@@ -47,12 +47,16 @@ export function createGameSessions(
     if (!win || runner.current() == null) return
     bringToFront(win, settings.fullscreen)
     win.webContents.send('overlay:state', true)
+    // The pad still reaches the game in the background: pausing it keeps the menu from playing it.
+    const id = runner.current()
+    if (settings.pauseOnOverlay && id != null) void runner.setFrozen(id, true)
   }
   const hideOverlay = () => {
     // Also when the user Alt+Tabbed here instead of using the shortcut.
     const win = getWindow()
     if (!win || runner.current() == null) return
     win.webContents.send('overlay:state', false)
+    void runner.setFrozen(runner.current()!, false)
     getOutOfTheWay(win)
   }
   function toggleOverlay(): void {

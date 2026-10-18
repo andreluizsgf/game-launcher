@@ -1,4 +1,5 @@
 import type { StoreGame, StoreSection } from '@shared/types'
+import { pickWide } from './art'
 import { FIELDS, imageUrl, PC_WINDOWS, type IgdbClient, type IgdbGame, type PopularityPrimitive } from './igdb'
 
 const DAY = 86_400
@@ -105,13 +106,13 @@ const SECTIONS: SectionDef[] = [
 ]
 
 export function toStoreGame(g: IgdbGame, inLibraryId: number | null): StoreGame {
-  const wide = g.artworks?.[0]?.image_id ?? g.screenshots?.[0]?.image_id
+  const wide = pickWide(g)
   return {
     igdbId: g.id,
     name: g.name,
     year: g.first_release_date ? new Date(g.first_release_date * 1000).getUTCFullYear() : null,
     releaseDate: g.first_release_date ? g.first_release_date * 1000 : null,
-    coverUrl: g.cover ? imageUrl(g.cover.image_id, 'cover_big') : null,
+    coverUrl: g.cover ? imageUrl(g.cover.image_id, 'cover_big_2x') : null,
     artUrl: wide ? imageUrl(wide, '1080p') : null,
     rating: g.total_rating != null ? Math.round(g.total_rating) : null,
     ratingCount: g.total_rating_count ?? 0,

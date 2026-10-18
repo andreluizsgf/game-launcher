@@ -7,6 +7,12 @@ export interface IgdbCredentials {
   clientSecret: string
 }
 
+export interface IgdbImage {
+  image_id: string
+  width?: number
+  height?: number
+}
+
 export interface IgdbGame {
   id: number
   name: string
@@ -14,8 +20,8 @@ export interface IgdbGame {
   summary?: string
   genres?: { name: string }[]
   cover?: { image_id: string }
-  artworks?: { image_id: string }[]
-  screenshots?: { image_id: string }[]
+  artworks?: IgdbImage[]
+  screenshots?: IgdbImage[]
   total_rating?: number
   total_rating_count?: number
   hypes?: number
@@ -32,11 +38,11 @@ export class MissingCredentialsError extends Error {
   }
 }
 
-export const imageUrl = (imageId: string, size: 'cover_big' | 'cover_small' | '1080p' | 'screenshot_big') =>
+export const imageUrl = (imageId: string, size: 'cover_big' | 'cover_big_2x' | 'cover_small' | '1080p' | 'screenshot_big') =>
   `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`
 
 export const FIELDS =
-  'fields name,first_release_date,summary,genres.name,cover.image_id,artworks.image_id,screenshots.image_id,total_rating,total_rating_count,hypes;'
+  'fields name,first_release_date,summary,genres.name,cover.image_id,artworks.image_id,artworks.width,artworks.height,screenshots.image_id,screenshots.width,screenshots.height,total_rating,total_rating_count,hypes;'
 export { PC_WINDOWS }
 
 /** Apicalypse body for a game search on one platform (PC by default). Exported for tests. */

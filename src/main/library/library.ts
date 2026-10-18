@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
 import type { EmulatorAction, ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
-import { download } from '../catalog/art'
+import { cacheArt, download } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
 import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/launch'
 import { pcsx2Action, preparePcsx2 } from '../emulators/pcsx2'
@@ -15,7 +15,7 @@ import type { QbWebApi } from '../downloads/qbWebApi'
 import { ownedEpicGames, scanEpic } from '../platforms/epic'
 import type { EpicAccount } from '../platforms/epicAccount'
 import { ownedSteamGames, scanSteam, steamArt, type PlatformGame } from '../platforms/steam'
-import { decrypt, emulatorPath, igdbCredentials, type StoredSettings } from '../settings'
+import { decrypt, emulatorPath, igdbCredentials, saveSettings, type StoredSettings } from '../settings'
 import type { Catalog } from './catalog'
 import { INSTALL_DIR, runInstaller } from './installer'
 import type { Runner } from './runner'
@@ -46,7 +46,42 @@ export class Library {
       : { added: 0, updated: 0, removed: 0, total: 0 }
     await this.syncPlatforms().catch((err) => console.warn('[platforms] sync failed', err))
     await this.syncEmulated().catch((err) => console.warn('[emulators] sync failed', err))
+    // Once per run: rescans also happen on window focus.
+    if (settings.artVersion < ART_VERSION && !this.artTried && igdbCredentials(settings)) {
+      this.artTried = true
+      void this.refreshCatalogArt().then(() => this.d.onChanged())
+    }
     return result
+  }
+
+  private artTried = false
+
+  /**
+   * Re-fetches catalog art for games linked to IGDB when the art rules change (sharper covers, a better
+   * background pick). Runs in the background; old files are deleted. Done once most games got through
+   * (offline or IGDB down: tried again on the next start).
+   */
+  private async refreshCatalogArt(): Promise<void> {
+    const { repo, settings, catalog, artDir } = this.d
+    const games = repo.list().filter((g) => g.igdbId != null)
+    let done = 0
+    const jobs = games.map((g) => async () => {
+      const fresh = await catalog.igdb.get(g.igdbId!)
+      done++
+      if (!fresh) return
+      const art = await cacheArt(artDir, fresh)
+      repo.replaceArt(g.id, art.coverPath, art.artPath)
+      for (const [old, next] of [
+        [g.coverPath, art.coverPath],
+        [g.artPath, art.artPath]
+      ]) {
+        if (old && next && old !== next && isInside(old, artDir)) await fs.rm(old, { force: true })
+      }
+    })
+    await pool(jobs, 2)
+    if (done < games.length / 2) return
+    settings.artVersion = ART_VERSION
+    saveSettings(settings)
   }
 
   /**
@@ -267,6 +302,9 @@ export class Library {
     if (!this.d.repo.removeCatalog(gameId)) throw new Error('Só jogos não instalados podem ser removidos')
   }
 }
+
+/** Bump when cacheArt picks or sizes images differently: linked games get their art again. */
+const ART_VERSION = 1
 
 const norm = (p: string) =>
   resolve(p)

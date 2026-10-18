@@ -21,6 +21,16 @@ Desenhar dentro do jogo exigiria injeção (hook de DirectX/Vulkan), que é frá
   - **Atalhos:** botão PS (lido em background via HID, ADR 0008) ou `Ctrl+Shift+G`, registrado só enquanto há
     jogo rodando.
   - **Jogos em tela cheia exclusiva** minimizam, como num Alt+Tab.
+  - **Pausa (desde a v0.13.0):** o jogo continua lendo o controle em segundo plano, então o menu "jogava" junto.
+    Por isso o menu pausa o jogo (configurável em `pauseOnOverlay`, ligado por padrão):
+    - **jogos de PC:** o Runner suspende todos os processos da pasta vigiada (`NtSuspendProcess`, o mesmo que o
+      "Suspender processo" do Monitor de Recursos) e os retoma ao fechar o menu, ao fechar o jogo ou ao sair do
+      launcher;
+    - **emuladores:** não são suspensos, porque o menu precisa deles rodando para salvar ou carregar estado.
+      Eles se pausam sozinhos ao perder o foco (`pause_nonactive` no RetroArch, `PauseOnFocusLoss` no PCSX2), e
+      as ações do menu devolvem o foco ao emulador antes de agir.
+    - **riscos:** jogos online podem desconectar enquanto suspensos, e um anti-cheat pode não gostar. Por isso a
+      pausa pode ser desligada.
 - **Ao abrir emuladores:** `focusWindowOf(pid)` espera a janela principal e chama `SetForegroundWindow`, com o
   truque do Alt (`keybd_event`). Sem isso o RetroArch abre sem foco e pausado.
 - **Instaladores de repack:** recebem a tela do mesmo jeito.

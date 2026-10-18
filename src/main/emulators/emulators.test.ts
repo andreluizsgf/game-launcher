@@ -149,6 +149,7 @@ describe('RetroArch commands', () => {
     expect(RETROARCH_OVERRIDES).toContain(`network_cmd_port = "${RETROARCH_CMD_PORT}"`)
     expect(RETROARCH_OVERRIDES).toContain('input_player1_analog_dpad_mode = "1"')
     expect(RETROARCH_OVERRIDES).toContain('input_enable_hotkey_btn = "4"')
+    expect(RETROARCH_OVERRIDES).toContain('pause_nonactive = "true"')
     expect(RETROARCH_OVERRIDES).toContain('input_player1_select_btn = "20"')
     const server = createSocket('udp4')
     const got = new Promise<string>((resolve) => server.on('message', (m) => resolve(m.toString())))

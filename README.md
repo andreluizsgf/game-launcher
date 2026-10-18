@@ -132,7 +132,7 @@ DualSense por **USB ou Bluetooth** (pareie pelo Windows: segure **PS + Create** 
 | Voltar pro topo da lista | ○ | `Esc` |
 | Overlay / menu de energia | PS | `Ctrl+Shift+G` (durante o jogo) |
 
-O botão **PS**: com um jogo aberto, mostra o launcher por cima (dá pra voltar ao jogo ou fechá-lo); na tela inicial, abre o menu de energia (suspender, reiniciar, desligar, fechar o app); em outras telas, volta pro início.
+O botão **PS**: com um jogo aberto, mostra o launcher por cima e **pausa o jogo** enquanto o menu está aberto (dá pra voltar ao jogo ou fechá-lo; a pausa pode ser desligada em Configurações → *Pausar o jogo no menu do PS*, útil em jogos online, que podem desconectar); na tela inicial, abre o menu de energia (suspender, reiniciar, desligar, fechar o app); em outras telas, volta pro início.
 
 ## 4. Problemas comuns
 

@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'child_process'
+import { execFile, execFileSync, spawn } from 'child_process'
 import { shell } from 'electron'
 import { dirname, sep } from 'path'
 import type { Game } from '@shared/types'
@@ -72,6 +72,30 @@ function listProcesses(): Promise<Proc[]> {
   })
 }
 
+/** PowerShell that suspends (or resumes) processes by pid — what Resource Monitor's "Suspend process" does. */
+export function suspendScript(pids: number[], suspend: boolean): string {
+  const fn = suspend ? 'NtSuspendProcess' : 'NtResumeProcess'
+  return `
+Add-Type @"
+using System; using System.Runtime.InteropServices;
+public static class GlNt { [DllImport("ntdll.dll")] public static extern int ${fn}(IntPtr h); }
+"@
+foreach ($id in @(${pids.map((p) => Math.trunc(p)).join(',')})) {
+  try { $p = [System.Diagnostics.Process]::GetProcessById($id); [GlNt]::${fn}($p.Handle) | Out-Null } catch {}
+}`
+}
+
+function suspendProcesses(pids: number[], suspend: boolean): Promise<void> {
+  return new Promise((resolve) =>
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', suspendScript(pids, suspend)],
+      { windowsHide: true },
+      () => resolve()
+    )
+  )
+}
+
 /** Processes started from inside a game folder (the exe, launcher stubs, child processes…). */
 const inFolder = (folder: string) => (p: Proc) => p.path.toLowerCase().startsWith(folder)
 const folderKey = (folder: string) => folder.toLowerCase().replace(/[\\/]+$/, '') + sep
@@ -84,9 +108,19 @@ export interface LaunchSpec {
   watch: string
 }
 
+interface Session {
+  game: Game
+  startedAt: number
+  watch: string
+  /** Started through an emulator (LaunchSpec). */
+  emulated: boolean
+  /** Pids suspended by the PS menu's pause. */
+  frozen: number[]
+}
+
 export class Runner {
   private running = new Map<number, NodeJS.Timeout>()
-  private games = new Map<number, { game: Game; startedAt: number; watch: string }>()
+  private games = new Map<number, Session>()
 
   constructor(private hooks: RunnerHooks) {}
 
@@ -104,7 +138,7 @@ export class Runner {
 
     await this.hooks.beforeLaunch?.(game)
     const startedAt = Date.now()
-    this.games.set(game.id, { game, startedAt, watch: gameFolder })
+    this.games.set(game.id, { game, startedAt, watch: gameFolder, emulated: !!spec, frozen: [] })
 
     if (process.platform !== 'win32') {
       // Dev stub on macOS/Linux: simulate a short session.
@@ -140,6 +174,36 @@ export class Runner {
     this.running.set(game.id, setTimeout(tick, POLL_MS))
   }
 
+  /**
+   * Freezes every process of a running PC game (the PS menu's pause) or thaws them. Emulators are left alone:
+   * they pause themselves on focus loss and the menu's save/load state needs them running.
+   */
+  async setFrozen(gameId: number, frozen: boolean): Promise<void> {
+    const entry = this.games.get(gameId)
+    if (!entry || entry.emulated || process.platform !== 'win32') return
+    if (frozen && entry.frozen.length) return
+    const pids = frozen
+      ? (await listProcesses()).filter(inFolder(folderKey(entry.watch))).map((p) => p.pid)
+      : entry.frozen
+    if (!pids.length) return
+    entry.frozen = frozen ? pids : []
+    await suspendProcesses(pids, frozen)
+  }
+
+  /** On quit: a frozen game must not stay frozen without the launcher around to thaw it. */
+  thawAllSync(): void {
+    const pids = [...this.games.values()].flatMap((e) => e.frozen)
+    if (pids.length && process.platform === 'win32') {
+      try {
+        execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', suspendScript(pids, false)], {
+          windowsHide: true
+        })
+      } catch {
+        // Nothing more to do on the way out.
+      }
+    }
+  }
+
   /** Id of the game being played, if any. */
   current(): number | null {
     return this.games.keys().next().value ?? null
@@ -154,6 +218,8 @@ export class Runner {
     if (!entry) throw new Error('Esse jogo não está rodando')
     clearTimeout(this.running.get(gameId))
     if (process.platform === 'win32') {
+      // Killing works on suspended processes too; thawing first lets them exit cleanly when they can.
+      if (entry.frozen.length) await suspendProcesses(entry.frozen, false)
       const procs = (await listProcesses()).filter(inFolder(folderKey(entry.watch)))
       await Promise.all(
         procs.map(

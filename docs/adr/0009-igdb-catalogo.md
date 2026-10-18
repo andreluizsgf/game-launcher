@@ -19,6 +19,11 @@ certo.
   de 30 min. Os ids de gênero, tema e popularidade são resolvidos por nome a cada atualização, nunca fixos no
   código.
 - **Arte:** baixada uma vez para `userData/art` (`cacheArt`) e servida via `media://`.
+  - Capa em `cover_big_2x` (528×748), nítida no tile em foco.
+  - Fundo: `pickWide` escolhe a maior artwork em paisagem (proporção ≥ 1,5). Se não houver, a maior screenshot
+    em paisagem; só então qualquer imagem. A primeira artwork do IGDB costuma ser pôster em retrato ou logo.
+  - O nome do arquivo inclui o `image_id`. Quando as regras mudam, `ART_VERSION` (em `library.ts`) é
+    incrementado e a arte dos jogos ligados ao IGDB é baixada de novo em background, uma vez.
 - **Vínculo automático** só quando o título casa (`titlesMatch`). O usuário corrige com "Identificar jogo"
   (`catalog:link`).
   - Se o vínculo aponta para uma entrada só de wishlist, ela é absorvida.

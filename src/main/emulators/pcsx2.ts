@@ -131,6 +131,8 @@ const ACTION_KEY: Partial<Record<EmulatorAction, string>> = {
 export function applyPcsx2Settings(text: string): string {
   let out = iniSet(text, 'InputSources', 'SDL', 'true')
   out = iniSet(out, 'InputSources', 'SDLControllerEnhancedMode', 'true')
+  // Paused while the launcher's PS menu is up; resumes when the menu gives focus back.
+  out = iniSet(out, 'UI', 'PauseOnFocusLoss', 'true')
   const padBound = iniValues(out, 'Pad1').some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
   if (!padBound) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
   // Pads mapped by older versions had Select on Create, which is now the hotkey modifier.

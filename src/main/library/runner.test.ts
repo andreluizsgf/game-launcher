@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ shell: {} }))
-const { nextWatch } = await import('./runner')
+const { nextWatch, suspendScript } = await import('./runner')
 
 const GRACE = 120_000
 const start = { seen: false, misses: 0 }
@@ -23,5 +23,14 @@ describe('nextWatch', () => {
   it('a hand-off gap (launcher exits, game starts) does not end the session', () => {
     const gap = nextWatch({ seen: true, misses: 0 }, false, 30_000, GRACE)
     expect(nextWatch(gap as never, true, 35_000, GRACE)).toEqual({ seen: true, misses: 0 })
+  })
+})
+
+describe('suspendScript', () => {
+  it('suspends or resumes exactly the given pids', () => {
+    const s = suspendScript([12, 34.7], true)
+    expect(s).toContain('NtSuspendProcess')
+    expect(s).toContain('@(12,34)')
+    expect(suspendScript([12], false)).toContain('NtResumeProcess')
   })
 })

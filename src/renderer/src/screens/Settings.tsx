@@ -195,6 +195,11 @@ export function Settings(props: Props) {
       value: settings.openAtLogin ? 'Ligado · em tela cheia' : 'Desligado',
       run: async () => onSettings(await window.api.setSettings({ openAtLogin: !settings.openAtLogin }))
     },
+    {
+      label: 'Pausar o jogo no menu do PS',
+      value: settings.pauseOnOverlay ? 'Ligado' : 'Desligado · o jogo continua rodando',
+      run: async () => onSettings(await window.api.setSettings({ pauseOnOverlay: !settings.pauseOnOverlay }))
+    },
     { label: 'IGDB Client ID', value: settings.igdbClientId ?? 'Não definido', run: () => setEditing('clientId') },
     { label: 'IGDB Client Secret', value: settings.hasIgdbSecret ? '••••••••' : 'Não definido', run: () => setEditing('secret') },
     { label: 'Telegram API ID', value: settings.telegramApiId?.toString() ?? 'Não definido', run: () => setEditing('tgApiId') },

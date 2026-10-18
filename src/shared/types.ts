@@ -56,6 +56,8 @@ export interface Settings {
   fullscreen: boolean
   /** Start with Windows, straight into fullscreen. */
   openAtLogin: boolean
+  /** The PS menu pauses the running game. */
+  pauseOnOverlay: boolean
   igdbClientId: string | null
   /** The secret itself never leaves the main process. */
   hasIgdbSecret: boolean
@@ -82,6 +84,7 @@ export type SettingsPatch = Partial<
     | 'epicLibrary'
     | 'fullscreen'
     | 'openAtLogin'
+    | 'pauseOnOverlay'
     | 'igdbClientId'
     | 'telegramApiId'
     | 'telegramPeer'

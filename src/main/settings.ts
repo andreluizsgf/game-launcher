@@ -22,6 +22,10 @@ export interface StoredSettings {
   epicAccountName: string | null
   fullscreen: boolean
   openAtLogin: boolean
+  /** The PS menu freezes the running PC game (emulators use their own pause). */
+  pauseOnOverlay: boolean
+  /** Catalog art fetched with this version of the art rules (see Library.refreshCatalogArt). */
+  artVersion: number
   igdbClientId: string | null
   igdbSecretEnc: string | null
   telegramApiId: number | null
@@ -47,6 +51,8 @@ const DEFAULTS: StoredSettings = {
   epicAccountName: null,
   fullscreen: false,
   openAtLogin: false,
+  pauseOnOverlay: true,
+  artVersion: 0,
   igdbClientId: null,
   igdbSecretEnc: null,
   telegramApiId: null,
@@ -93,6 +99,7 @@ export function publicSettings(s: StoredSettings): Settings {
     epicAccount: s.epicRefreshEnc ? (s.epicAccountName ?? 'Conta Epic') : null,
     fullscreen: s.fullscreen,
     openAtLogin: s.openAtLogin,
+    pauseOnOverlay: s.pauseOnOverlay,
     igdbClientId: s.igdbClientId,
     hasIgdbSecret: !!s.igdbSecretEnc || !!process.env.IGDB_CLIENT_SECRET,
     telegramApiId: s.telegramApiId,

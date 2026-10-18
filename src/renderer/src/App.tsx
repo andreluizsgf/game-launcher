@@ -179,16 +179,14 @@ export function App() {
             await lib.reload(g.id)
           }}
           onEmulatorAction={async (g, action) => {
-            // PCSX2 takes these as hotkeys: its window needs the focus back first.
-            const pcsx2 = systemById(g.platform)?.emulator === 'pcsx2'
-            if (pcsx2) await session.resume()
+            // Back to the game first: emulators pause while the menu has focus (PCSX2 also takes these as
+            // hotkeys, which need its window focused).
+            await session.resume()
             const res = await window.api.emulatorAction(g.id, action)
             if (!res.ok) return notify(res.error)
             if (action === 'saveState') notify('Estado salvo')
-            else if (action === 'loadState') {
-              notify('Estado carregado')
-              if (!pcsx2) session.resume()
-            } else if (action === 'fastForward') notify('Velocidade alternada')
+            else if (action === 'loadState') notify('Estado carregado')
+            else if (action === 'fastForward') notify('Velocidade alternada')
           }}
           onStoreInstall={async (g) => {
             const res = await window.api.storeInstall(g.id)

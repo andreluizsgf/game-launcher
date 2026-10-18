@@ -33,13 +33,14 @@ sem configurar cada emulador à mão.
 
 - **RetroArch:**
   - Um arquivo de overrides no userData passado com `--appendconfig`: driver de controle **SDL2** (o único que lê
-    o DualSense em todos os modos), analógico como direcional em sistemas digitais e tela cheia borderless.
+    o DualSense em todos os modos), analógico como direcional em sistemas digitais, tela cheia borderless e pausa ao perder o foco
+    (`pause_nonactive`, para o menu do PS não jogar junto, ADR 0007).
   - Atalhos e comandos de rede UDP em `localhost:55355`.
 - **PCSX2:**
   - Edição **idempotente** do `PCSX2.ini`. O caminho do INI depende do modo:
     - portable: `<pasta do exe>/inis`;
     - normal: `Documentos\PCSX2\inis`, com fallback em `%APPDATA%\PCSX2`.
-  - Liga o SDL com o modo aprimorado do DualSense.
+  - Liga o SDL com o modo aprimorado do DualSense e a pausa ao perder o foco (`UI/PauseOnFocusLoss`).
   - Mapeia a porta 1 **só se ainda não houver controle mapeado**.
   - Acrescenta os atalhos, que aceitam múltiplos valores, sem duplicar.
   - Remove os atalhos antigos que o próprio launcher gravou.

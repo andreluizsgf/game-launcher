@@ -42,6 +42,7 @@ export function registerSettings({ settings, downloads, telegram, library, epic,
       settings.openAtLogin = patch.openAtLogin
       applyOpenAtLogin(patch.openAtLogin)
     }
+    if (patch.pauseOnOverlay !== undefined) settings.pauseOnOverlay = patch.pauseOnOverlay
     if (patch.fullscreen !== undefined) {
       settings.fullscreen = patch.fullscreen
       getWindow()?.setFullScreen(settings.fullscreen)

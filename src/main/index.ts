@@ -35,6 +35,7 @@ app.whenReady().then(async () => {
 
   app.on('before-quit', () => {
     releaseShortcuts()
+    runner.thawAllSync()
     runner.stopAll()
     db.close()
   })

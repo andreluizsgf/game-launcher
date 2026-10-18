@@ -38,6 +38,7 @@ describe('applyPcsx2Settings', () => {
     expect(pad).toMatchObject({ Cross: 'SDL-0/A', LUp: 'SDL-0/-LeftY', R2: 'SDL-0/+RightTrigger', Select: 'SDL-0/Touchpad' })
     expect(pad).not.toHaveProperty('Analog') // PS button stays the launcher's
     expect(once).toContain('SDLControllerEnhancedMode = true')
+    expect(once).toContain('PauseOnFocusLoss = true')
     const save = iniValues(once, 'Hotkeys').filter((l) => l.key === 'SaveStateToSlot')
     expect(save.map((l) => l.value)).toEqual(['Keyboard/F1', 'SDL-0/Back & SDL-0/RightShoulder'])
     expect(once).not.toContain('SDL-0/Touchpad &') // v0.12.1 touchpad chords are dropped
