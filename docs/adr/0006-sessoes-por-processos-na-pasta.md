@@ -28,7 +28,8 @@ ao launcher.
 - Jogos de loja são abertos com `shell.openExternal(launch_uri)`. Os demais com `spawn` destacado.
 - "Fechar jogo" faz `taskkill /T /F` em todos os processos da pasta vigiada. Jogos costumam ignorar o pedido
   educado de fechar.
-- Um jogo por vez.
+- Um jogo por vez: abrir outro fecha o que está rodando, e desligar ou reiniciar pelo menu de energia também
+  fecha o jogo antes (a sessão e o tempo de jogo ficam salvos). Suspender mantém o jogo aberto.
 - **Tempo de jogo = tempo em foco** (2026-10-31): um PowerShell de longa duração (`focusTime.ts`) lê a cada 1 s
   o executável da janela em primeiro plano. Só conta o intervalo em que ela está dentro da pasta vigiada. Menu PS,
   Alt+Tab e jogo esquecido em segundo plano não contam. Cada amostra vale no máximo 3 s, para a suspensão do PC

@@ -209,6 +209,9 @@ export class Library {
     const game = this.d.repo.get(gameId)
     if (!game) throw new Error('Jogo não encontrado')
     if (!game.folder) throw new Error('Jogo não instalado')
+    // One game at a time: opening another closes the one running (its session and playtime are saved).
+    const running = this.d.runner.current()
+    if (running != null && running !== gameId) await this.d.runner.stop(running)
     if (game.source !== 'emulator') return this.d.runner.launch(game)
     const system = systemById(game.platform)
     if (!system) throw new Error('Sistema desconhecido')

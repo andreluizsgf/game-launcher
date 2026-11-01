@@ -24,8 +24,12 @@ export function registerSystem({ settings, downloads, updater, runner, library }
     }
   })
 
-  handle('system:power', (action: PowerAction) => {
+  handle('system:power', async (action: PowerAction) => {
     if (!['sleep', 'restart', 'shutdown'].includes(action)) throw new Error('Ação inválida')
+    // Shutting down or restarting closes the running game first, so its session and playtime are saved
+    // (Windows would kill it anyway). Sleep keeps it: it resumes where it was.
+    const running = runner.current()
+    if (action !== 'sleep' && running != null) await runner.stop(running)
     return runPower(action)
   })
   ipcMain.handle('clipboard:read', () => clipboard.readText())

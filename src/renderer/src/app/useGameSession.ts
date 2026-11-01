@@ -18,7 +18,11 @@ export function useGameSession({ notify, reload, onOverlayOpened }: Deps) {
   opened.current = onOverlayOpened
 
   useEffect(() => {
-    const offStart = window.api.onGameStarted((id) => setRunningId(id))
+    const offStart = window.api.onGameStarted((id) => {
+      setRunningId(id)
+      // Its last-played time was just set: it moves to the front of the list now, focus following it.
+      reload(id)
+    })
     const offEnd = window.api.onGameEnded(({ gameId, seconds }) => {
       setRunningId(null)
       notify(`Sessão encerrada · ${formatPlaytime(seconds)}`)
