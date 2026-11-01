@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickWide } from './art'
+import { hasWideArt, pickWide } from './art'
 
 describe('pickWide', () => {
   it('prefers the biggest landscape artwork over portrait posters and screenshots', () => {
@@ -19,5 +19,13 @@ describe('pickWide', () => {
     expect(pickWide({ artworks: [{ image_id: 'poster', width: 600, height: 900 }], screenshots: shots })).toBe('shot')
     expect(pickWide({ artworks: [{ image_id: 'nosize' }] })).toBe('nosize')
     expect(pickWide({})).toBeNull()
+  })
+})
+
+describe('hasWideArt', () => {
+  it('needs a landscape artwork or screenshot, not just a poster', () => {
+    expect(hasWideArt({ artworks: [{ image_id: 'poster', width: 600, height: 900 }] })).toBe(false)
+    expect(hasWideArt({ artworks: [{ image_id: 'nosize' }] })).toBe(false)
+    expect(hasWideArt({ screenshots: [{ image_id: 'shot', width: 1920, height: 1080 }] })).toBe(true)
   })
 })

@@ -7,6 +7,10 @@ const MIN_WIDE_RATIO = 1.5
 const area = (i: IgdbImage) => (i.width ?? 0) * (i.height ?? 0)
 const isWide = (i: IgdbImage) => !!i.width && !!i.height && i.width / i.height >= MIN_WIDE_RATIO
 
+/** IGDB has real landscape art for the game (not just a poster or a screenshot-less fallback). */
+export const hasWideArt = (g: Pick<IgdbGame, 'artworks' | 'screenshots'>): boolean =>
+  [...(g.artworks ?? []), ...(g.screenshots ?? [])].some(isWide)
+
 /**
  * Background image: the biggest landscape artwork (key art), else the biggest landscape screenshot, else
  * whatever there is. IGDB's first artwork is often a portrait poster or a logo on a flat color.

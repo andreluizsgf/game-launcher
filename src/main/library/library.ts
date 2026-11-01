@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
 import type { EmulatorAction, ScanResult } from '@shared/types'
 import { titlesMatch } from '@shared/titleKey'
-import { cacheArt, download } from '../catalog/art'
+import { cacheArt, download, hasWideArt } from '../catalog/art'
 import type { GamesRepo } from '../db/games'
 import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/launch'
 import { pcsx2Action, preparePcsx2 } from '../emulators/pcsx2'
@@ -63,6 +63,9 @@ export class Library {
    */
   private async refreshCatalogArt(): Promise<void> {
     const { repo, settings, catalog, artDir } = this.d
+    // Store games from before they were linked by title (ART_VERSION 2) get linked first.
+    const unlinked = repo.list().filter((g) => (g.source === 'steam' || g.source === 'epic') && g.igdbId == null)
+    await pool(unlinked.map((g) => () => this.linkByTitle(g.id)), 2)
     const games = repo.list().filter((g) => g.igdbId != null)
     let done = 0
     const jobs = games.map((g) => async () => {
@@ -70,6 +73,8 @@ export class Library {
       done++
       if (!fresh) return
       const art = await cacheArt(artDir, fresh)
+      // No landscape art on IGDB: keep what the game has (a store's hero beats a portrait poster).
+      if (!hasWideArt(fresh) && g.artPath) art.artPath = null
       repo.replaceArt(g.id, art.coverPath, art.artPath)
       for (const [old, next] of [
         [g.coverPath, art.coverPath],
@@ -115,7 +120,7 @@ export class Library {
     epicIds: number[],
     epicArt: Map<string, PlatformGame['art']>
   ): Promise<void> {
-    const { repo, settings, catalog, artDir } = this.d
+    const { repo, artDir } = this.d
     mkdirSync(artDir, { recursive: true })
     const save = async (id: number, prefix: string, cover: string | null, wide: string | null) => {
       const [c, w] = await Promise.all([
@@ -129,22 +134,35 @@ export class Library {
       if (!g?.externalId) return
       const art = steamArt(g.externalId)
       await save(id, `steam-${g.externalId}`, art.cover, art.art)
+      await this.linkByTitle(id)
     })
     const epicJobs = epicIds.map((id) => async () => {
       const g = repo.get(id)
       if (!g?.externalId) return
       const art = epicArt.get(g.externalId)
       if (art) await save(id, `epic-${g.externalId.replace(/[^\w-]/g, '_')}`, art.cover, art.wide)
-      // Installed ones also get catalog data (summary, genres) from IGDB, when it's set up.
-      if (!g.folder || !igdbCredentials(settings)) return
-      try {
-        const hit = (await catalog.igdb.search(g.title)).find((h) => titlesMatch(h.name, g.title))
-        if (hit && !repo.byIgdbId(hit.id)) repo.applyCatalog(id, await catalog.toMeta(hit))
-      } catch {
-        // Offline / IGDB down: it stays with its Epic name; "Identificar jogo" works later.
-      }
+      await this.linkByTitle(id)
     })
     await pool([...steamJobs, ...epicJobs], 6)
+  }
+
+  /**
+   * Installed store games get catalog data (summary, genres, art) from IGDB by title, when it's set up.
+   * IGDB's 16:9 key art beats Steam's library_hero (a 3:1 strip that a 16:9 backdrop blows up and crops);
+   * the store's art stays when IGDB has nothing landscape.
+   */
+  private async linkByTitle(id: number): Promise<void> {
+    const { repo, settings, catalog } = this.d
+    const g = repo.get(id)
+    if (!g?.folder || g.igdbId != null || !igdbCredentials(settings)) return
+    try {
+      const hit = (await catalog.igdb.search(g.title)).find((h) => titlesMatch(h.name, g.title))
+      if (!hit || repo.byIgdbId(hit.id)) return
+      const meta = await catalog.toMeta(hit)
+      repo.applyCatalog(id, hasWideArt(hit) || !g.artPath ? meta : { ...meta, artPath: null })
+    } catch {
+      // Offline / IGDB down: it stays with the store's name and art; "Identificar jogo" works later.
+    }
   }
 
   /** In-game menu of an emulated game: RetroArch network commands, or PCSX2 hotkeys. */
@@ -304,7 +322,7 @@ export class Library {
 }
 
 /** Bump when cacheArt picks or sizes images differently: linked games get their art again. */
-const ART_VERSION = 1
+const ART_VERSION = 2
 
 const norm = (p: string) =>
   resolve(p)
