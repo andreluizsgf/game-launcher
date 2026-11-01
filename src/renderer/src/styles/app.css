@@ -531,6 +531,9 @@ body.mouse-mode .grid-item:not(.focused):hover .grid-cover { box-shadow: 0 0 0 2
 .dl-confirm { margin: 16px 0 0; color: #ffb36b; font-size: 18px; flex: none; }
 body.mouse-mode .dl { cursor: pointer; }
 
+/* Controllers (top bar): one battery or dot per pad */
+.pads { display: flex; align-items: center; gap: 14px; }
+
 /* Controller battery (top bar), shown instead of the dot when a Sony pad reports it over HID */
 .pad-battery { display: flex; align-items: center; gap: 6px; font-size: 16px; color: var(--fg-dim); }
 .pad-battery svg { width: 28px; height: 14px; }

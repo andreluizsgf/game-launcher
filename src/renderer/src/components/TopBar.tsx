@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { StorageInfo } from '@shared/types'
 import { formatBytes } from '../format'
 import type { PadStatus } from '../input/gamepad'
-import { LOW_BATTERY } from '../app/useInputDevices'
+import { LOW_BATTERY } from '../input/padNotices'
 import { useInputMode } from '../input/mode'
 
 export type Tab = 'games' | 'store' | 'downloads'
@@ -92,10 +92,19 @@ export function TopBar({ pad, storage, playing, tab, onTab, downloads }: Props) 
             {formatBytes(storage.free)} livres
           </span>
         )}
-        {pad.connected && pad.battery ? (
-          <PadBattery level={pad.battery.level} charging={pad.battery.charging} name={pad.name} />
+        {pad.pads.length === 0 ? (
+          <span className="pad-dot" title="Sem controle" />
         ) : (
-          <span className={`pad-dot ${pad.connected ? 'on' : ''}`} title={pad.name ?? 'Sem controle'} />
+          // One per pad: battery when it's read over HID, otherwise the green dot.
+          <span className="pads">
+            {pad.pads.map((p, i) =>
+              p.battery ? (
+                <PadBattery key={i} level={p.battery.level} charging={p.battery.charging} name={p.name} />
+              ) : (
+                <span key={i} className="pad-dot on" title={p.name} />
+              )
+            )}
+          </span>
         )}
         <time>{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
       </div>

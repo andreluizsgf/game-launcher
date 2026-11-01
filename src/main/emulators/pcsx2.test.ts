@@ -51,6 +51,27 @@ describe('applyPcsx2Settings', () => {
     expect(pad).toEqual({ Type: 'DualShock2', Cross: 'SDL-0/A', Select: 'SDL-0/Touchpad' })
   })
 
+  it('remaps port 2 when it is bound to the same pad as port 1', () => {
+    const mirrored = existing.replace(
+      '[Pad1]\nType = DualShock2\n',
+      '[Pad1]\nType = DualShock2\nCross = SDL-0/A\n\n[Pad2]\nType = DualShock2\nCross = SDL-0/A\nAnalog = SDL-0/Guide\n'
+    )
+    const out = applyPcsx2Settings(mirrored)
+    const pad2 = iniValues(out, 'Pad2').map((l) => l.value)
+    expect(pad2).toContain('SDL-1/A')
+    expect(pad2.some((v) => v.includes('SDL-0/'))).toBe(false)
+    expect(iniValues(out, 'Pad1').find((l) => l.key === 'Cross')?.value).toBe('SDL-0/A')
+  })
+
+  it('keeps a port 2 mapped by hand to another pad', () => {
+    const own = existing.replace('[Pad1]\nType = DualShock2\n', '[Pad1]\nType = DualShock2\n\n[Pad2]\nCross = SDL-2/A\n')
+    expect(iniValues(applyPcsx2Settings(own), 'Pad2').map((l) => l.value)).toEqual(['SDL-2/A'])
+  })
+
+  it('turns on the DualSense player LEDs', () => {
+    expect(applyPcsx2Settings(existing)).toContain('SDLPS5PlayerLED = true')
+  })
+
   it('maps the second pad on port 2, with Select on Create', () => {
     const pad2 = Object.fromEntries(iniValues(applyPcsx2Settings(existing), 'Pad2').map((l) => [l.key, l.value]))
     expect(pad2).toMatchObject({ Type: 'DualShock2', Cross: 'SDL-1/A', Select: 'SDL-1/Back', LUp: 'SDL-1/-LeftY' })

@@ -26,11 +26,15 @@ const REPEAT_RATE = 90
 
 const SONY_VENDOR = /054c/i
 
-export interface PadStatus {
-  connected: boolean
-  name: string | null
+export interface PadInfo {
+  name: string
   /** Sony pads read over HID only: the Gamepad API has no battery. */
   battery: Battery | null
+}
+
+/** Every pad driving the launcher, in a stable order. */
+export interface PadStatus {
+  pads: PadInfo[]
 }
 
 type StatusListener = (s: PadStatus) => void
@@ -40,6 +44,7 @@ interface Pad {
   id: string
   buttons: boolean[]
   axes: readonly number[]
+  battery?: Battery | null
 }
 
 /**
@@ -52,7 +57,7 @@ interface Pad {
  */
 function activePads(): Pad[] {
   const live = liveHidPads()
-  if (live.length) return live.map((h) => ({ id: h.id, ...h.state }))
+  if (live.length) return live.map((h) => ({ id: h.id, ...h.state, battery: h.battery }))
   const pads: Pad[] = navigator
     .getGamepads()
     .filter((p): p is Gamepad => !!p && p.connected)
@@ -101,9 +106,8 @@ export function startGamepadLoop(onStatus: StatusListener, onGuide: () => void):
 
   const loop = (now: number) => {
     const pads = activePads()
-    const battery = liveHidPads()[0]?.battery ?? null
-    const status: PadStatus = { connected: pads.length > 0, name: pads[0]?.id ?? null, battery }
-    const key = `${status.connected}|${status.name}|${battery?.level}|${battery?.charging}`
+    const status: PadStatus = { pads: pads.map((p) => ({ name: p.id, battery: p.battery ?? null })) }
+    const key = JSON.stringify(status)
     if (key !== lastStatus) {
       lastStatus = key
       onStatus(status)

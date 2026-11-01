@@ -135,6 +135,17 @@ const PAD2: Record<string, string> = Object.fromEntries(
 const isBound = (text: string, section: string) =>
   iniValues(text, section).some((l) => l.key !== 'Type' && /^SDL-|^XInput-|^DInput-/.test(l.value))
 
+/** SDL pad numbers a port's bindings use (`SDL-1/A` → 1), chords included. */
+const sdlPads = (text: string, section: string) =>
+  new Set(iniValues(text, section).flatMap((l) => [...l.value.matchAll(/SDL-(\d+)\//g)].map((m) => Number(m[1]))))
+
+/** Port 2 driven by the very same SDL pad as port 1 only ever mirrors player 1: never a mapping worth keeping. */
+const mirrorsPad1 = (text: string) => {
+  const p1 = sdlPads(text, 'Pad1')
+  const p2 = sdlPads(text, 'Pad2')
+  return p2.size > 0 && [...p2].every((n) => p1.has(n))
+}
+
 /**
  * Applies the launcher's input setup to a PCSX2.ini: SDL with the DualSense enhanced mode, the pads on ports 1
  * and 2 (only when not bound to a controller yet — a mapping made by hand is kept) and the hotkeys.
@@ -142,9 +153,13 @@ const isBound = (text: string, section: string) =>
 export function applyPcsx2Settings(text: string): string {
   let out = iniSet(text, 'InputSources', 'SDL', 'true')
   out = iniSet(out, 'InputSources', 'SDLControllerEnhancedMode', 'true')
+  // The DualSense player LEDs show which pad is player 1 and 2 (SDL numbers pads in the order Windows lists
+  // them, not the order they were turned on).
+  out = iniSet(out, 'InputSources', 'SDLPS5PlayerLED', 'true')
   // Paused while the launcher's PS menu is up; resumes when the menu gives focus back.
   out = iniSet(out, 'UI', 'PauseOnFocusLoss', 'true')
   if (!isBound(out, 'Pad1')) for (const [k, v] of Object.entries(PAD1)) out = iniSet(out, 'Pad1', k, v)
+  if (mirrorsPad1(out)) out = iniRemove(out, 'Pad2', (_, v) => /SDL-\d+\//.test(v))
   if (!isBound(out, 'Pad2')) for (const [k, v] of Object.entries(PAD2)) out = iniSet(out, 'Pad2', k, v)
   // Pads mapped by older versions had Select on Create, which is now the hotkey modifier.
   if (iniValues(out, 'Pad1').some((l) => l.key === 'Select' && l.value === MOD)) {
