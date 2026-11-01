@@ -94,7 +94,7 @@ Os jogos ficam na prateleira **Emuladores**, com capa e ficha do IGDB do console
 3. No launcher, se você não marcou o "ignorar autenticação": **qBittorrent usuário** e **qBittorrent senha**. A linha **qBittorrent Interface Web** mostra se conectou.
 4. Se o launcher não achar o qBittorrent sozinho, aponte o `.exe` em **qBittorrent**.
 
-Com isso os torrents vão direto pra `<pasta de jogos>\<nome do jogo>`, o progresso aparece no app e o jogo entra na biblioteca quando termina. Sem a Interface Web o app ainda abre o qBittorrent, mas sem progresso.
+Com isso os torrents vão direto pra `<pasta de jogos>\<nome do jogo>` e o jogo entra na biblioteca quando termina. A aba **Downloads** (R1) mostra todos os downloads da pasta de jogos com progresso, velocidade e tempo restante: **✕** pausa ou retoma e **□** duas vezes cancela (o torrent sai do qBittorrent e a pasta vai pra Lixeira, a não ser que você já tenha jogado ou instalado algo nela). Sem a Interface Web o app ainda abre o qBittorrent, mas sem progresso.
 
 ### Busca de torrents — Telegram (opcional)
 
@@ -127,7 +127,7 @@ DualSense por **USB ou Bluetooth** (pareie pelo Windows: segure **PS + Create** 
 | Detalhes do jogo | △ | `T` |
 | Adicionar jogo (busca) | □ | `S` |
 | Configurações | OPTIONS | `O` |
-| Trocar aba (Jogos / Loja) | L1 / R1 | `Q` / `E` |
+| Trocar aba (Jogos / Loja / Downloads) | L1 / R1 | `Q` / `E` |
 | Trocar prateleira (Instalados / Emuladores / Na biblioteca…) | L2 / R2 | `Shift+Tab` / `Tab` |
 | Voltar pro topo da lista | ○ | `Esc` |
 | Overlay / menu de energia | PS | `Ctrl+Shift+G` (durante o jogo) |
