@@ -530,3 +530,14 @@ body.mouse-mode .grid-item:not(.focused):hover .grid-cover { box-shadow: 0 0 0 2
 .dl.done .progress span { background: #3ddc84; }
 .dl-confirm { margin: 16px 0 0; color: #ffb36b; font-size: 18px; flex: none; }
 body.mouse-mode .dl { cursor: pointer; }
+
+/* Controller battery (top bar), shown instead of the dot when a Sony pad reports it over HID */
+.pad-battery { display: flex; align-items: center; gap: 6px; font-size: 16px; color: var(--fg-dim); }
+.pad-battery svg { width: 28px; height: 14px; }
+.pad-battery-shell { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.pad-battery-cap { fill: currentColor; }
+.pad-battery-fill { fill: var(--fg); }
+.pad-battery.charging .pad-battery-fill { fill: #3ddc84; }
+.pad-battery-bolt { fill: var(--fg); stroke: #0b0d12; stroke-width: 1.2; stroke-linejoin: round; paint-order: stroke; }
+.pad-battery.low { color: #ff8a80; }
+.pad-battery.low .pad-battery-fill { fill: #ff8a80; }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { StorageInfo } from '@shared/types'
 import { formatBytes } from '../format'
 import type { PadStatus } from '../input/gamepad'
+import { LOW_BATTERY } from '../app/useInputDevices'
 import { useInputMode } from '../input/mode'
 
 export type Tab = 'games' | 'store' | 'downloads'
@@ -26,6 +27,25 @@ interface Props {
   onTab(t: Tab): void
   /** Unfinished downloads and their overall progress (0–1), shown on the Downloads tab. */
   downloads: { active: number; progress: number }
+}
+
+/** Controller battery: a small battery glyph filled to the level, red when low, a bolt while charging. */
+function PadBattery({ level, charging, name }: { level: number; charging: boolean; name: string | null }) {
+  const low = !charging && level <= LOW_BATTERY
+  return (
+    <span
+      className={`pad-battery ${low ? 'low' : ''} ${charging ? 'charging' : ''}`}
+      title={`${name ?? 'Controle'} · ${level}%${charging ? ' · carregando' : ''}`}
+    >
+      <svg viewBox="0 0 28 14" aria-hidden="true">
+        <rect className="pad-battery-shell" x="0.75" y="0.75" width="23.5" height="12.5" rx="3" />
+        <rect className="pad-battery-cap" x="25" y="4.5" width="2.5" height="5" rx="1" />
+        <rect className="pad-battery-fill" x="3" y="3" width={(19 * Math.max(level, 5)) / 100} height="8" rx="1.5" />
+        {charging && <path className="pad-battery-bolt" d="M13.5 2.2 9.6 7.6h3l-1 4.2 3.9-5.4h-3z" />}
+      </svg>
+      {level}%
+    </span>
+  )
 }
 
 /** Below this share of free space the indicator turns red. */
@@ -72,7 +92,11 @@ export function TopBar({ pad, storage, playing, tab, onTab, downloads }: Props) 
             {formatBytes(storage.free)} livres
           </span>
         )}
-        <span className={`pad-dot ${pad.connected ? 'on' : ''}`} title={pad.name ?? 'Sem controle'} />
+        {pad.connected && pad.battery ? (
+          <PadBattery level={pad.battery.level} charging={pad.battery.charging} name={pad.name} />
+        ) : (
+          <span className={`pad-dot ${pad.connected ? 'on' : ''}`} title={pad.name ?? 'Sem controle'} />
+        )}
         <time>{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
       </div>
     </header>

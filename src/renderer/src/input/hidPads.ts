@@ -1,4 +1,4 @@
-import { parseReport, SONY_VENDOR_ID, type PadState } from './dualsense'
+import { parseBattery, parseReport, SONY_VENDOR_ID, type Battery, type PadState } from './dualsense'
 
 /** Minimal WebHID typings (not in TS's DOM lib). */
 interface HIDDevice extends EventTarget {
@@ -8,6 +8,7 @@ interface HIDDevice extends EventTarget {
   productName: string
   collections: { usagePage: number; usage: number }[]
   open(): Promise<void>
+  receiveFeatureReport(reportId: number): Promise<DataView>
 }
 interface HIDInputReportEvent extends Event {
   device: HIDDevice
@@ -23,6 +24,8 @@ export interface HidPad {
   state: PadState
   /** performance.now() of the last parsed report; 0 = none yet. */
   lastReportAt: number
+  /** Last battery reading; null until a full report arrives. */
+  battery: Battery | null
 }
 
 /** A pad that reported this recently is trusted over the Gamepad API. */
@@ -39,7 +42,8 @@ const isGamepad = (d: HIDDevice) =>
 async function attach(d: HIDDevice): Promise<void> {
   if (!isGamepad(d) || pads.has(d)) return
   const id = `${d.productName || 'Sony controller'} (HID ${d.vendorId.toString(16)}:${d.productId.toString(16)})`
-  const pad: HidPad = { id, state: { buttons: [], axes: [0, 0, 0, 0] }, lastReportAt: 0 }
+  const pad: HidPad = { id, state: { buttons: [], axes: [0, 0, 0, 0] }, lastReportAt: 0, battery: null }
+  let askedFull = false
   pads.set(d, pad)
   try {
     if (!d.opened) await d.open()
@@ -54,6 +58,13 @@ async function attach(d: HIDDevice): Promise<void> {
     if (s) {
       pad.state = s
       pad.lastReportAt = performance.now()
+    }
+    pad.battery = parseBattery(reportId, data) ?? pad.battery
+    // Bluetooth starts in the short report (no battery). Reading the calibration feature report switches
+    // the pad to the full one, like Linux and SDL do; parseReport reads both.
+    if (reportId === 0x01 && data.byteLength <= 16 && !askedFull) {
+      askedFull = true
+      d.receiveFeatureReport(0x05).catch(() => {})
     }
   })
 }

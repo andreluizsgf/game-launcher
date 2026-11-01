@@ -1,4 +1,5 @@
 import { inputBus, type Action } from './actions'
+import type { Battery } from './dualsense'
 import { hidPads, liveHidPads } from './hidPads'
 import { setInputMode } from './mode'
 
@@ -28,6 +29,8 @@ const SONY_VENDOR = /054c/i
 export interface PadStatus {
   connected: boolean
   name: string | null
+  /** Sony pads read over HID only: the Gamepad API has no battery. */
+  battery: Battery | null
 }
 
 type StatusListener = (s: PadStatus) => void
@@ -98,8 +101,9 @@ export function startGamepadLoop(onStatus: StatusListener, onGuide: () => void):
 
   const loop = (now: number) => {
     const pads = activePads()
-    const status: PadStatus = { connected: pads.length > 0, name: pads[0]?.id ?? null }
-    const key = `${status.connected}|${status.name}`
+    const battery = liveHidPads()[0]?.battery ?? null
+    const status: PadStatus = { connected: pads.length > 0, name: pads[0]?.id ?? null, battery }
+    const key = `${status.connected}|${status.name}|${battery?.level}|${battery?.charging}`
     if (key !== lastStatus) {
       lastStatus = key
       onStatus(status)

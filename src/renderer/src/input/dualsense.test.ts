@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseReport } from './dualsense'
+import { parseBattery, parseReport } from './dualsense'
 
 const view = (bytes: number[]) => new DataView(new Uint8Array(bytes).buffer)
 const CROSS = 0,
@@ -47,5 +47,30 @@ describe('parseReport', () => {
 
   it('ignores other reports', () => {
     expect(parseReport(0x05, view(new Array(40).fill(0)))).toBeNull()
+  })
+})
+
+describe('parseBattery', () => {
+  const usb = (status: number) => {
+    const data = new Array(63).fill(0)
+    data[52] = status
+    return view(data)
+  }
+
+  it('reads level and charging from the USB report', () => {
+    expect(parseBattery(0x01, usb(0x07))).toEqual({ level: 70, charging: false })
+    expect(parseBattery(0x01, usb(0x13))).toEqual({ level: 30, charging: true })
+    expect(parseBattery(0x01, usb(0x2a))).toEqual({ level: 100, charging: false })
+  })
+
+  it('reads the Bluetooth full report, one byte further', () => {
+    const data = new Array(77).fill(0)
+    data[53] = 0x05
+    expect(parseBattery(0x31, view(data))).toEqual({ level: 50, charging: false })
+  })
+
+  it('has nothing in the Bluetooth simple report, nor on battery errors', () => {
+    expect(parseBattery(0x01, view([128, 128, 128, 128, 8, 0, 0, 0, 0]))).toBeNull()
+    expect(parseBattery(0x01, usb(0xa5))).toBeNull()
   })
 })

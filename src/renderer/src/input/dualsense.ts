@@ -69,3 +69,31 @@ export function parseReport(reportId: number, data: DataView): PadState | null {
     ]
   }
 }
+
+export interface Battery {
+  /** 0–100, in steps of 10 (the pad reports tenths). */
+  level: number
+  charging: boolean
+}
+
+/**
+ * Battery from the status byte of the full reports (USB 0x01, Bluetooth 0x31): low nibble = level in tenths,
+ * high nibble = 0 discharging, 1 charging, 2 full. The Bluetooth simple report has no battery: null.
+ */
+export function parseBattery(reportId: number, data: DataView): Battery | null {
+  const at = reportId === 0x01 && data.byteLength > 16 ? 52 : reportId === 0x31 ? 53 : -1
+  if (at < 0 || data.byteLength <= at) return null
+  const status = data.getUint8(at)
+  const tenths = status & 0x0f
+  switch (status >> 4) {
+    case 0x0:
+      return { level: Math.min(100, tenths * 10), charging: false }
+    case 0x1:
+      return { level: Math.min(100, tenths * 10), charging: true }
+    case 0x2:
+      return { level: 100, charging: false }
+    default:
+      // Voltage/temperature errors and unknown states: no reading beats a wrong one.
+      return null
+  }
+}
