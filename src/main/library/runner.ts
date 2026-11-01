@@ -118,6 +118,9 @@ interface Session {
   emulated: boolean
   /** Pids suspended by the PS menu's pause. */
   frozen: number[]
+  /** Latest pause request from the PS menu, and the queue of freeze/thaw operations working towards it. */
+  wantFrozen: boolean
+  freezing: Promise<void>
   clock: FocusClock
   stopFocus: () => void
 }
@@ -147,7 +150,17 @@ export class Runner {
     // Playtime is time spent with the game in front, not the session: the PS menu, Alt+Tab and a game
     // left open in the background don't count.
     const stopFocus = watchForeground((path) => clock.sample(Date.now(), inFolder(folder)({ pid: 0, path })))
-    this.games.set(game.id, { game, startedAt, watch: gameFolder, emulated: !!spec, frozen: [], clock, stopFocus })
+    this.games.set(game.id, {
+      game,
+      startedAt,
+      watch: gameFolder,
+      emulated: !!spec,
+      frozen: [],
+      wantFrozen: false,
+      freezing: Promise.resolve(),
+      clock,
+      stopFocus
+    })
 
     if (process.platform !== 'win32') {
       // Dev stub on macOS/Linux: simulate a short session.
@@ -186,16 +199,27 @@ export class Runner {
    * Freezes every process of a running PC game (the PS menu's pause) or thaws them. Emulators are left alone:
    * they pause themselves on focus loss and the menu's save/load state needs them running.
    */
-  async setFrozen(gameId: number, frozen: boolean): Promise<void> {
+  setFrozen(gameId: number, frozen: boolean): Promise<void> {
     const entry = this.games.get(gameId)
-    if (!entry || entry.emulated || process.platform !== 'win32') return
-    if (frozen && entry.frozen.length) return
-    const pids = frozen
-      ? (await listProcesses()).filter(inFolder(folderKey(entry.watch))).map((p) => p.pid)
-      : entry.frozen
-    if (!pids.length) return
-    entry.frozen = frozen ? pids : []
-    await suspendProcesses(pids, frozen)
+    if (!entry || entry.emulated || process.platform !== 'win32') return Promise.resolve()
+    // Freezing takes a second or two (listing processes), and the PS button can be pressed again meanwhile.
+    // Requests queue up and each one moves towards the latest wish, so a quick close never leaves it frozen.
+    entry.wantFrozen = frozen
+    entry.freezing = entry.freezing.then(() => this.applyFrozen(entry))
+    return entry.freezing
+  }
+
+  private async applyFrozen(entry: Session): Promise<void> {
+    if (entry.wantFrozen && !entry.frozen.length) {
+      const pids = (await listProcesses()).filter(inFolder(folderKey(entry.watch))).map((p) => p.pid)
+      if (!entry.wantFrozen || !pids.length) return // unpaused while listing
+      entry.frozen = pids
+      await suspendProcesses(pids, true)
+    } else if (!entry.wantFrozen && entry.frozen.length) {
+      const pids = entry.frozen
+      entry.frozen = []
+      await suspendProcesses(pids, false)
+    }
   }
 
   /** On quit: a frozen game must not stay frozen without the launcher around to thaw it. */
@@ -227,6 +251,8 @@ export class Runner {
     entry.stopFocus()
     clearTimeout(this.running.get(gameId))
     if (process.platform === 'win32') {
+      entry.wantFrozen = false
+      await entry.freezing
       // Killing works on suspended processes too; thawing first lets them exit cleanly when they can.
       if (entry.frozen.length) await suspendProcesses(entry.frozen, false)
       const procs = (await listProcesses()).filter(inFolder(folderKey(entry.watch)))

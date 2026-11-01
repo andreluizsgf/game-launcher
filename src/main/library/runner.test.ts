@@ -1,7 +1,20 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ shell: {} }))
-const { nextWatch, suspendScript } = await import('./runner')
+
+/** PowerShell stand-in: listing processes is slow, suspend/resume calls are recorded in order. */
+const calls: string[] = []
+vi.mock('child_process', () => ({
+  execFile: (_cmd: string, args: string[], _opts: unknown, cb: (err: null, out: string) => void) => {
+    const script = args[args.length - 1]
+    if (script.includes('Win32_Process')) setTimeout(() => cb(null, '7|/games/x/x.exe\r\n'), 50)
+    else {
+      calls.push(script.includes('NtSuspendProcess') ? 'suspend' : 'resume')
+      cb(null, '')
+    }
+  }
+}))
+const { nextWatch, suspendScript, Runner } = await import('./runner')
 
 const GRACE = 120_000
 const start = { seen: false, misses: 0 }
@@ -32,5 +45,36 @@ describe('suspendScript', () => {
     expect(s).toContain('NtSuspendProcess')
     expect(s).toContain('@(12,34)')
     expect(suspendScript([12], false)).toContain('NtResumeProcess')
+  })
+})
+
+describe('Runner.setFrozen', () => {
+  const platform = process.platform
+  beforeEach(() => {
+    calls.length = 0
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+  })
+  afterEach(() => Object.defineProperty(process, 'platform', { value: platform }))
+
+  const runnerWithGame = () => {
+    const runner = new Runner({ onStart: () => {}, onEnd: () => {} })
+    // folderKey() joins with path.sep, so the watched folder uses the host's separator.
+    const session = { watch: '/games/x', emulated: false, frozen: [], wantFrozen: false, freezing: Promise.resolve() }
+    ;(runner as unknown as { games: Map<number, unknown> }).games.set(1, session)
+    return runner
+  }
+
+  it('a quick unpause while the pause is still listing processes leaves the game running', async () => {
+    const runner = runnerWithGame()
+    const pause = runner.setFrozen(1, true)
+    await Promise.all([pause, runner.setFrozen(1, false)])
+    expect(calls).toEqual([])
+  })
+
+  it('pauses and unpauses in order', async () => {
+    const runner = runnerWithGame()
+    await runner.setFrozen(1, true)
+    await runner.setFrozen(1, false)
+    expect(calls).toEqual(['suspend', 'resume'])
   })
 })
