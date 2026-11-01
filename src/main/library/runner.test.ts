@@ -1,13 +1,17 @@
+import { sep } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ shell: {} }))
+
+/** The game's folder in the host's separator: folderKey() appends path.sep (`\` on the Windows CI). */
+const GAME_DIR = ['', 'games', 'x'].join(sep)
 
 /** PowerShell stand-in: listing processes is slow, suspend/resume calls are recorded in order. */
 const calls: string[] = []
 vi.mock('child_process', () => ({
   execFile: (_cmd: string, args: string[], _opts: unknown, cb: (err: null, out: string) => void) => {
     const script = args[args.length - 1]
-    if (script.includes('Win32_Process')) setTimeout(() => cb(null, '7|/games/x/x.exe\r\n'), 50)
+    if (script.includes('Win32_Process')) setTimeout(() => cb(null, `7|${GAME_DIR}${sep}x.exe\r\n`), 50)
     else {
       calls.push(script.includes('NtSuspendProcess') ? 'suspend' : 'resume')
       cb(null, '')
@@ -58,8 +62,7 @@ describe('Runner.setFrozen', () => {
 
   const runnerWithGame = () => {
     const runner = new Runner({ onStart: () => {}, onEnd: () => {} })
-    // folderKey() joins with path.sep, so the watched folder uses the host's separator.
-    const session = { watch: '/games/x', emulated: false, frozen: [], wantFrozen: false, freezing: Promise.resolve() }
+    const session = { watch: GAME_DIR, emulated: false, frozen: [], wantFrozen: false, freezing: Promise.resolve() }
     ;(runner as unknown as { games: Map<number, unknown> }).games.set(1, session)
     return runner
   }
