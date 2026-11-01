@@ -7,8 +7,13 @@ const CACHE_MS = 30 * 60 * 1000
 /** IGDB popularity type 1 = page visits on IGDB (the most broadly populated signal). */
 const POPULARITY_VISITS = 1
 
-/** Main games only (no DLC/editions/ports), PC, with a cover. */
-const BASE = `platforms = (${PC_WINDOWS}) & version_parent = null & parent_game = null & cover != null`
+/** IGDB tags every adult game with the "erotic" theme; its docs give this id for filtering them out. */
+const EROTIC_THEME = 42
+
+/** Main games only (no DLC/editions/ports), PC, with a cover, no adult games. */
+const BASE =
+  `platforms = (${PC_WINDOWS}) & version_parent = null & parent_game = null & cover != null` +
+  ` & themes != (${EROTIC_THEME})`
 
 /**
  * Ids resolved from IGDB by slug/name on each refresh, so sections never depend on guessed ids.

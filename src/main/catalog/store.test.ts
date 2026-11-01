@@ -4,12 +4,13 @@ import { sectionQueries, toStoreGame } from './store'
 describe('sectionQueries', () => {
   const now = 1_790_000_000
   const q = sectionQueries(now)
-  it('limits every section to main PC games with cover', () => {
+  it('limits every section to main PC games with cover, no adult games', () => {
     const { greatIn, ...lists } = q
     for (const body of [...Object.values(lists), greatIn('genres', 12)]) {
       expect(body).toContain('platforms = (6)')
       expect(body).toContain('version_parent = null')
       expect(body).toContain('cover != null')
+      expect(body).toContain('themes != (42)')
     }
   })
   it('upcoming only lists future games by hype', () => {
