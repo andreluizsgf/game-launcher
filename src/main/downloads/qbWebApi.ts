@@ -76,6 +76,19 @@ export class QbWebApi {
     })
   }
 
+  /** Pauses or resumes torrents. qBittorrent 5 renamed pause/resume to stop/start; 4.x answers 404 to those. */
+  async setPaused(hashes: string[], paused: boolean): Promise<void> {
+    if (!hashes.length) return
+    const body = () => new URLSearchParams({ hashes: hashes.join('|') })
+    const post = (action: string) => this.request(`/api/v2/torrents/${action}`, { method: 'POST', body: body() })
+    try {
+      await post(paused ? 'stop' : 'start')
+    } catch (err) {
+      if (!(err instanceof Error) || !err.message.endsWith(' 404')) throw err
+      await post(paused ? 'pause' : 'resume')
+    }
+  }
+
   /** Adds a .torrent file or magnet with an explicit save path (automatic management off, so it's honored). */
   async add(torrent: string, savePath: string | null): Promise<void> {
     const form = new FormData()

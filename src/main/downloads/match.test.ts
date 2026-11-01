@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { Game } from '@shared/types'
-import { downloadState, gameFolderOf, matchGame } from './match'
+import { downloadState, gameFolderOf, matchGame, trashOnCancel } from './match'
 
 const root = join('/games')
 
@@ -45,5 +45,17 @@ describe('downloadState', () => {
     expect(downloadState('stoppedDL')).toBe('paused')
     expect(downloadState('uploading')).toBe('done')
     expect(downloadState('missingFiles')).toBe('error')
+  })
+})
+
+describe('trashOnCancel', () => {
+  const alone = { otherTorrents: 0, played: false, installed: false }
+  it('trashes a folder that only holds the cancelled download', () => {
+    expect(trashOnCancel(alone)).toBe(true)
+  })
+  it('keeps folders shared with another torrent, played or already installed', () => {
+    expect(trashOnCancel({ ...alone, otherTorrents: 1 })).toBe(false)
+    expect(trashOnCancel({ ...alone, played: true })).toBe(false)
+    expect(trashOnCancel({ ...alone, installed: true })).toBe(false)
   })
 })

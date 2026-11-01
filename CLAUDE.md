@@ -19,9 +19,10 @@ npm run build:win           # pacote Windows local (normalmente quem empacota é
 ```
 
 Variáveis de dev: `GL_GAMES_ROOT`, `GL_ROMS_ROOT` (pastas quando não configuradas), `GL_STUB_SECONDS` (duração
-da sessão falsa no Mac), `GL_STORE_MOCK=1` (loja sem IGDB), `GL_AWN_DIR` (dados falsos do Achievement Watcher),
-`IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET`, `GL_SNAPSHOT=<dir>` (screenshots roteirizados, ver
-`src/main/devSnapshot.ts`; edite os passos pra checar uma tela e restaure o arquivo com `git checkout` depois).
+da sessão falsa no Mac), `GL_STORE_MOCK=1` (loja sem IGDB), `GL_DOWNLOADS_MOCK=1` (downloads sem qBittorrent),
+`GL_AWN_DIR` (dados falsos do Achievement Watcher), `IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET`, `GL_SNAPSHOT=<dir>`
+(screenshots roteirizados, ver `src/main/devSnapshot.ts`; edite os passos pra checar uma tela e restaure o arquivo
+com `git checkout` depois).
 
 Antes de dar a tarefa como pronta: `npm run typecheck && npm test` (e `npm run test:db` se mexeu em `src/main/db`).
 

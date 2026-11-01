@@ -1,5 +1,5 @@
 import { app, shell } from 'electron'
-import { mkdirSync, promises as fs, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, promises as fs, writeFileSync } from 'fs'
 import { basename, dirname, join, resolve, sep } from 'path'
 import { systemById } from '@shared/systems'
 import type { EmulatorAction, ScanResult } from '@shared/types'
@@ -10,7 +10,7 @@ import { launchArgs, missingEmulator, RETROARCH_OVERRIDES } from '../emulators/l
 import { pcsx2Action, preparePcsx2 } from '../emulators/pcsx2'
 import { sendRetroArch } from '../emulators/retroarchCmd'
 import { scanRoms } from '../emulators/scan'
-import { gameFolderOf } from '../downloads/match'
+import { gameFolderOf, trashOnCancel } from '../downloads/match'
 import type { QbWebApi } from '../downloads/qbWebApi'
 import { ownedEpicGames, scanEpic } from '../platforms/epic'
 import type { EpicAccount } from '../platforms/epicAccount'
@@ -255,6 +255,45 @@ export class Library {
     }
     repo.uninstall(gameId)
     this.d.onDownloadsChanged()
+  }
+
+  /** Pauses or resumes a qBittorrent download. */
+  async pauseDownload(hash: string, paused: boolean): Promise<void> {
+    await this.d.qbWeb.setPaused([hash], paused)
+    this.d.onDownloadsChanged()
+  }
+
+  /**
+   * Cancels a download: the torrent leaves qBittorrent (its files are never deleted by it) and the folder goes
+   * to the Recycle Bin when it only holds this partial download. Returns what happened, for the toast.
+   */
+  async cancelDownload(hash: string): Promise<string> {
+    const { settings, qbWeb, repo } = this.d
+    const root = settings.gamesRoot
+    if (!root) throw new Error('Defina a pasta de jogos')
+    const torrents = await qbWeb.torrents()
+    const t = torrents.find((x) => x.hash === hash)
+    if (!t) throw new Error('Esse download não está mais no qBittorrent')
+    const name = gameFolderOf(t, root)
+    const folder = name ? join(root, name) : null
+    await qbWeb.remove([hash], false)
+    this.d.onDownloadsChanged()
+    if (!folder || !isDirectChild(folder, root) || !existsSync(folder)) return 'Download cancelado'
+    const game = repo.list().find((g) => g.folder && norm(g.folder) === norm(folder))
+    const trash = trashOnCancel({
+      otherTorrents: torrents.filter((x) => x.hash !== hash && gameFolderOf(x, root) === name).length,
+      played: (game?.totalSeconds ?? 0) > 0,
+      installed: existsSync(join(folder, INSTALL_DIR))
+    })
+    if (!trash) return 'Download cancelado; a pasta do jogo ficou onde está'
+    try {
+      await shell.trashItem(folder)
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err)
+      throw new Error(`Download cancelado, mas a pasta não foi pra Lixeira: ${why}`)
+    }
+    await this.rescan()
+    return 'Download cancelado e pasta movida pra Lixeira'
   }
 
   /** Drops the folder's torrents, or qBittorrent keeps them in error ("missing files"). */

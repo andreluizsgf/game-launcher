@@ -8,8 +8,10 @@ import type { IpcContext } from './context'
 import { handle } from './result'
 
 /** Downloads status, disk space, power, clipboard, app version/updates/quit. */
-export function registerSystem({ settings, downloads, updater, runner }: IpcContext): void {
+export function registerSystem({ settings, downloads, updater, runner, library }: IpcContext): void {
   ipcMain.handle('downloads:get', () => downloads.current())
+  handle('downloads:pause', (hash: string, paused: boolean) => library.pauseDownload(hash, paused))
+  handle('downloads:cancel', (hash: string) => library.cancelDownload(hash))
 
   ipcMain.handle('system:storage', async (): Promise<StorageInfo | null> => {
     const path = settings.gamesRoot ?? app.getPath('home')

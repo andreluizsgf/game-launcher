@@ -30,6 +30,21 @@ export function matchGame(folderName: string, root: string, games: Game[]): Game
   )
 }
 
+export interface CancelCheck {
+  /** Other torrents saving into the same folder (e.g. an update for a game already there). */
+  otherTorrents: number
+  /** The library game in that folder has playtime. */
+  played: boolean
+  /** A repack was already installed in it (the Jogo subfolder exists). */
+  installed: boolean
+}
+
+/**
+ * Whether cancelling a download sends its folder to the Recycle Bin. Only when the folder is just this
+ * partial download; anything the user played or installed there stays, and only the torrent goes.
+ */
+export const trashOnCancel = (c: CancelCheck): boolean => c.otherTorrents === 0 && !c.played && !c.installed
+
 /** qBittorrent states → what the launcher shows. */
 export function downloadState(qbState: string): DownloadState {
   switch (qbState) {

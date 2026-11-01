@@ -4,6 +4,7 @@ import { AwnReader, awnDataDir } from '../achievements/awn'
 import { IgdbClient } from '../catalog/igdb'
 import { StoreService } from '../catalog/store'
 import type { GamesRepo } from '../db/games'
+import { mockQbWebApi } from '../downloads/qbMock'
 import { QbWebApi } from '../downloads/qbWebApi'
 import { DownloadWatcher } from '../downloads/watcher'
 import { Catalog } from '../library/catalog'
@@ -34,11 +35,13 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   const igdb = new IgdbClient(() => igdbCredentials(settings))
   const catalog = new Catalog(igdb, repo, artDir)
   const store = new StoreService(igdb, (igdbId) => repo.byIgdbId(igdbId)?.id ?? null)
-  const qbWeb = new QbWebApi(() => ({
-    url: settings.qbWebUrl,
-    username: settings.qbWebUser,
-    password: decrypt(settings.qbWebPasswordEnc)
-  }))
+  const qbWeb = process.env.GL_DOWNLOADS_MOCK
+    ? mockQbWebApi(() => settings.gamesRoot)
+    : new QbWebApi(() => ({
+        url: settings.qbWebUrl,
+        username: settings.qbWebUser,
+        password: decrypt(settings.qbWebPasswordEnc)
+      }))
 
   // Library ⇄ downloads: a finished download triggers a rescan; uninstalling re-polls downloads.
   const downloads: DownloadWatcher = new DownloadWatcher({

@@ -12,6 +12,34 @@ const PAD: Record<Hint['button'], { glyph: string; cls: string; action: Action }
   OPTIONS: { glyph: 'OPTIONS', cls: 'opt', action: 'options' }
 }
 
+/**
+ * The four face-button shapes, drawn rather than typed: ✕ ○ △ □ come from different fallback fonts with
+ * different sizes and baselines, so as text they never sit centered in the ring. Same 14-unit box and
+ * stroke for all; the triangle is nudged down to look centered (its visual center is below its box's).
+ */
+const SHAPES: Partial<Record<Hint['button'], JSX.Element>> = {
+  '✕': <path d="M3 3l8 8M11 3l-8 8" />,
+  '○': <circle cx="7" cy="7" r="4.6" />,
+  '△': <path d="M7 3.1l5 8.6H2z" />,
+  '□': <rect x="2.6" y="2.6" width="8.8" height="8.8" rx="0.6" />
+}
+
+function Glyph({ button }: { button: Hint['button'] }) {
+  const p = PAD[button]
+  const shape = SHAPES[button]
+  return (
+    <span className={`btn-glyph ${p.cls}`}>
+      {shape ? (
+        <svg className="btn-shape" viewBox="0 0 14 14" aria-label={p.glyph}>
+          {shape}
+        </svg>
+      ) : (
+        p.glyph
+      )}
+    </span>
+  )
+}
+
 /** Keyboard equivalents — must match keyboard.ts. */
 const KEYS: Record<Hint['button'], string> = {
   '✕': 'Enter',
@@ -32,7 +60,7 @@ export function ButtonHints({ hints }: { hints: Hint[] }) {
         return (
           <button key={h.button + h.label} className="hint" onClick={() => inputBus.emit(p.action)}>
             {mode === 'pad' ? (
-              <span className={`btn-glyph ${p.cls}`}>{p.glyph}</span>
+              <Glyph button={h.button} />
             ) : (
               <span className="btn-glyph key">{KEYS[h.button]}</span>
             )}

@@ -4,11 +4,18 @@ import { formatBytes } from '../format'
 import type { PadStatus } from '../input/gamepad'
 import { useInputMode } from '../input/mode'
 
-export type Tab = 'games' | 'store'
+export type Tab = 'games' | 'store' | 'downloads'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'games', label: 'Jogos' },
-  { id: 'store', label: 'Loja' }
+  { id: 'store', label: 'Loja' },
+  { id: 'downloads', label: 'Downloads' }
 ]
+
+/** The tab `dir` steps away from `t` (L1/R1), staying put at the ends. */
+export function stepTab(t: Tab, dir: -1 | 1): Tab {
+  const i = TABS.findIndex((x) => x.id === t)
+  return TABS[Math.max(0, Math.min(TABS.length - 1, i + dir))].id
+}
 
 interface Props {
   pad: PadStatus
@@ -17,12 +24,14 @@ interface Props {
   playing: string | null
   tab: Tab
   onTab(t: Tab): void
+  /** Unfinished downloads and their overall progress (0–1), shown on the Downloads tab. */
+  downloads: { active: number; progress: number }
 }
 
 /** Below this share of free space the indicator turns red. */
 const LOW_SPACE = 0.1
 
-export function TopBar({ pad, storage, playing, tab, onTab }: Props) {
+export function TopBar({ pad, storage, playing, tab, onTab, downloads }: Props) {
   const mode = useInputMode()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -39,6 +48,11 @@ export function TopBar({ pad, storage, playing, tab, onTab }: Props) {
         {TABS.map((t) => (
           <button key={t.id} className={`topbar-tab ${t.id === tab ? 'active' : ''}`} onClick={() => onTab(t.id)}>
             {t.label}
+            {t.id === 'downloads' && downloads.active > 0 && (
+              <span className="tab-badge">
+                {downloads.active} · {Math.floor(downloads.progress * 100)}%
+              </span>
+            )}
           </button>
         ))}
         <button className="topbar-shoulder" onClick={() => onTab(TABS[Math.min(TABS.length - 1, idx + 1)].id)}>

@@ -337,6 +337,9 @@ export interface LauncherApi {
   epicLogin(): Promise<Result<Settings>>
   epicLogout(): Promise<Settings>
   getDownloads(): Promise<DownloadsStatus>
+  pauseDownload(hash: string, paused: boolean): Promise<Result<null>>
+  /** Resolves to what happened (folder to the Recycle Bin or kept), for a toast. */
+  cancelDownload(hash: string): Promise<Result<string>>
   onDownloads(cb: (s: DownloadsStatus) => void): () => void
   /** Main process changed the library (download added a game, finished download rescanned). */
   onLibraryChanged(cb: (message: string | null) => void): () => void

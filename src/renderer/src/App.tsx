@@ -8,8 +8,10 @@ import { useStorage, useSystemStatus } from './app/useSystemStatus'
 import { useToast } from './app/useToast'
 import { Background, type BackdropArt } from './components/Background'
 import { Toast } from './components/Toast'
-import { TopBar, type Tab } from './components/TopBar'
+import { stepTab, TopBar, type Tab } from './components/TopBar'
 import { mediaUrl } from './format'
+import { downloadsSummary } from './library/downloads'
+import { Downloads } from './screens/Downloads'
 import { GameDetail } from './screens/GameDetail'
 import { Home } from './screens/Home'
 import { PowerMenu } from './screens/PowerMenu'
@@ -69,12 +71,18 @@ export function App() {
   const close = () => setOverlay({ kind: 'none' })
   const openSettings = () => setOverlay({ kind: 'settings' })
   const openSearch = () => setOverlay({ kind: 'search', mode: { kind: 'add' } })
-  const switchTab = (dir: -1 | 1) =>
-    setTab((t) => (dir > 0 ? (t === 'games' ? 'store' : t) : t === 'store' ? 'games' : t))
+  const switchTab = (dir: -1 | 1) => setTab((t) => stepTab(t, dir))
+  const [downloadsFrom, setDownloadsFrom] = useState<string | null>(null)
+  const openDownloads = (hash: string | null) => {
+    setDownloadsFrom(hash)
+    setTab('downloads')
+  }
 
   const onHomeConfirm = (g: Game) => {
     if (session.runningId === g.id) return void session.resume()
-    if (g.folder && (g.exePath || g.launchUri) && !lib.dlByGame.has(g.id)) return session.launch(g)
+    const dl = lib.dlByGame.get(g.id)
+    if (dl) return openDownloads(dl.hash)
+    if (g.folder && (g.exePath || g.launchUri)) return session.launch(g)
     // Not installed (or a repack to install): show what to do instead of failing silently.
     setOverlay({ kind: 'detail', gameId: g.id })
   }
@@ -94,14 +102,26 @@ export function App() {
 
   return (
     <div className="app">
-      <Background art={tab === 'games' ? homeArt : storeArt} />
+      <Background art={tab === 'store' ? storeArt : homeArt} />
       <TopBar
         pad={pad}
         storage={storage}
         playing={playing}
         tab={tab}
         onTab={(t) => overlay.kind === 'none' && setTab(t)}
+        downloads={downloadsSummary(downloads.items)}
       />
+      {tab === 'downloads' && (
+        <Downloads
+          status={downloads}
+          active={overlay.kind === 'none'}
+          initialHash={downloadsFrom}
+          onTab={switchTab}
+          onBack={() => setTab('games')}
+          onSettings={openSettings}
+          notify={notify}
+        />
+      )}
       <Store
         active={tab === 'store' && overlay.kind === 'none'}
         libraryVersion={lib.libraryVersion}

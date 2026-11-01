@@ -116,6 +116,8 @@ button { font: inherit; color: inherit; }
 .btn-glyph.triangle { color: #5fe0c0; }
 .btn-glyph.square { color: #f39ce6; }
 .btn-glyph.opt { font-size: 11px; border-radius: 6px; color: var(--fg); }
+.btn-glyph:has(.btn-shape) { width: 30px; padding: 0; }
+.btn-shape { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
 
 /* ---------- overlays ---------- */
 .overlay {
@@ -497,3 +499,34 @@ body.mouse-mode .store-rows { scrollbar-width: thin; }
 .grid-item:not(.focused) .grid-title { color: var(--fg-dim); }
 body.mouse-mode :is(.grid-item, .grid-chip) { cursor: pointer; }
 body.mouse-mode .grid-item:not(.focused):hover .grid-cover { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 6px 18px rgba(0, 0, 0, 0.45); }
+
+/* Downloads tab */
+.tab-badge {
+  margin-left: 10px; padding: 2px 9px; border-radius: 999px; vertical-align: 3px;
+  background: var(--accent); color: var(--fg); font-size: 13px; font-weight: 700; letter-spacing: 0;
+}
+.downloads {
+  position: relative; z-index: 1; height: calc(100% - 70px);
+  display: flex; flex-direction: column; padding: 8px 64px 120px;
+}
+.downloads-head { display: flex; align-items: baseline; gap: 18px; margin: 0 0 20px; flex: none; }
+.downloads-head h1 { font-size: 44px; font-weight: 300; margin: 0; }
+.downloads-head .muted { font-size: 20px; }
+.downloads-empty { color: var(--fg-dim); font-size: 20px; max-width: 760px; line-height: 1.5; margin: 0; }
+.dl-list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 10px; overflow-y: auto; min-height: 0; max-width: 1100px; }
+.dl {
+  display: flex; align-items: center; gap: 24px; padding: 16px 22px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06); transition: background 150ms, box-shadow 150ms;
+}
+.dl.focused { background: rgba(255, 255, 255, 0.14); box-shadow: 0 0 0 2px var(--focus-ring); }
+.dl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.dl-body strong { font-size: 21px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-body .muted { font-size: 16px; }
+.dl-body .progress.small { max-width: none; height: 6px; }
+.dl-size { font-size: 16px; flex: none; width: 76px; text-align: right; }
+.dl.paused .progress span, .dl.queued .progress span { background: var(--fg-dim); }
+.dl.error .progress span, .dl.stalled .progress span { background: #ffb36b; }
+.dl.error .muted { color: #ff8a80; }
+.dl.done .progress span { background: #3ddc84; }
+.dl-confirm { margin: 16px 0 0; color: #ffb36b; font-size: 18px; flex: none; }
+body.mouse-mode .dl { cursor: pointer; }
