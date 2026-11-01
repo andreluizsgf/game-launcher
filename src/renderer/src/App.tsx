@@ -102,7 +102,8 @@ export function App() {
 
   return (
     <div className="app">
-      <Background art={tab === 'store' ? storeArt : homeArt} />
+      {/* Downloads has no game of its own to show: the neutral backdrop instead of the last focused game. */}
+      <Background art={tab === 'store' ? storeArt : tab === 'downloads' ? null : homeArt} />
       <TopBar
         pad={pad}
         storage={storage}

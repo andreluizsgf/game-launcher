@@ -32,6 +32,8 @@ export function Background({ art }: { art: BackdropArt | null }) {
     <div className="bg">
       {layers.map((l) => {
         const h = hueOf(l.art?.seed ?? '')
+        // No art at all (Downloads, an empty library): a quiet blue instead of a hue picked from nothing.
+        const glow = l.art ? `hsl(${h} 55% 22%)` : 'hsl(222 45% 15%)'
         return (
           <div
             key={l.n}
@@ -39,7 +41,7 @@ export function Background({ art }: { art: BackdropArt | null }) {
             style={
               l.art?.url
                 ? { backgroundImage: `url("${l.art.url}")` }
-                : { background: `radial-gradient(ellipse at 70% 30%, hsl(${h} 55% 22%), #05070d 70%)` }
+                : { background: `radial-gradient(ellipse at 70% 30%, ${glow}, #05070d 70%)` }
             }
           />
         )
