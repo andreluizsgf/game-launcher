@@ -28,8 +28,8 @@ export function createGameSessions(
       if (win) getOutOfTheWay(win)
       globalShortcut.register(OVERLAY_SHORTCUT, toggleOverlay)
     },
-    onEnd(game, startedAt, endedAt) {
-      const seconds = Math.round((endedAt - startedAt) / 1000)
+    onEnd(game, _startedAt, endedAt, playedMs) {
+      const seconds = Math.round(playedMs / 1000)
       const sessionId = sessions.get(game.id)
       sessions.delete(game.id)
       if (sessionId) repo.endSession(sessionId, game.id, endedAt, seconds)

@@ -3,6 +3,7 @@ import { shell } from 'electron'
 import { dirname, sep } from 'path'
 import type { Game } from '@shared/types'
 import { focusWindowOf } from './focusWindow'
+import { FocusClock, watchForeground } from './focusTime'
 
 export interface RunnerHooks {
   /** Marco 2: activates the controller profile in the input helper. */
@@ -10,7 +11,8 @@ export interface RunnerHooks {
   /** Marco 2: deactivates the controller profile. */
   afterExit?(game: Game): Promise<void> | void
   onStart(game: Game, startedAt: number): void
-  onEnd(game: Game, startedAt: number, endedAt: number): void
+  /** `playedMs`: time the game was the foreground window (what counts as playtime). */
+  onEnd(game: Game, startedAt: number, endedAt: number, playedMs: number): void
 }
 
 const POLL_MS = 5000
@@ -116,6 +118,8 @@ interface Session {
   emulated: boolean
   /** Pids suspended by the PS menu's pause. */
   frozen: number[]
+  clock: FocusClock
+  stopFocus: () => void
 }
 
 export class Runner {
@@ -138,7 +142,12 @@ export class Runner {
 
     await this.hooks.beforeLaunch?.(game)
     const startedAt = Date.now()
-    this.games.set(game.id, { game, startedAt, watch: gameFolder, emulated: !!spec, frozen: [] })
+    const folder = folderKey(gameFolder)
+    const clock = new FocusClock(startedAt)
+    // Playtime is time spent with the game in front, not the session: the PS menu, Alt+Tab and a game
+    // left open in the background don't count.
+    const stopFocus = watchForeground((path) => clock.sample(Date.now(), inFolder(folder)({ pid: 0, path })))
+    this.games.set(game.id, { game, startedAt, watch: gameFolder, emulated: !!spec, frozen: [], clock, stopFocus })
 
     if (process.platform !== 'win32') {
       // Dev stub on macOS/Linux: simulate a short session.
@@ -160,7 +169,6 @@ export class Runner {
     }
     this.hooks.onStart(game, startedAt)
 
-    const folder = folderKey(gameFolder)
     const grace = game.launchUri && !spec ? STORE_GRACE_MS : STARTUP_GRACE_MS
     let watch: Watch = { seen: false, misses: 0 }
     const tick = async (): Promise<void> => {
@@ -216,6 +224,7 @@ export class Runner {
   async stop(gameId: number): Promise<void> {
     const entry = this.games.get(gameId)
     if (!entry) throw new Error('Esse jogo não está rodando')
+    entry.stopFocus()
     clearTimeout(this.running.get(gameId))
     if (process.platform === 'win32') {
       // Killing works on suspended processes too; thawing first lets them exit cleanly when they can.
@@ -234,15 +243,19 @@ export class Runner {
   }
 
   private async finish(game: Game, startedAt: number): Promise<void> {
-    if (!this.games.has(game.id)) return
+    const entry = this.games.get(game.id)
+    if (!entry) return
+    entry.stopFocus()
     this.games.delete(game.id)
     this.running.delete(game.id)
+    const endedAt = Date.now()
     await this.hooks.afterExit?.(game)
-    this.hooks.onEnd(game, startedAt, Date.now())
+    this.hooks.onEnd(game, startedAt, endedAt, entry.clock.played(startedAt, endedAt))
   }
 
   stopAll(): void {
     for (const t of this.running.values()) clearTimeout(t)
+    for (const e of this.games.values()) e.stopFocus()
     this.running.clear()
     this.games.clear()
   }

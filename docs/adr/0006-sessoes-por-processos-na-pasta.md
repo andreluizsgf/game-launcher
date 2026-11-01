@@ -29,6 +29,10 @@ ao launcher.
 - "Fechar jogo" faz `taskkill /T /F` em todos os processos da pasta vigiada. Jogos costumam ignorar o pedido
   educado de fechar.
 - Um jogo por vez.
+- **Tempo de jogo = tempo em foco** (2026-10-31): um PowerShell de longa duração (`focusTime.ts`) lê a cada 1 s
+  o executável da janela em primeiro plano. Só conta o intervalo em que ela está dentro da pasta vigiada. Menu PS,
+  Alt+Tab e jogo esquecido em segundo plano não contam. Cada amostra vale no máximo 3 s, para a suspensão do PC
+  não virar horas de jogo. Se o amostrador nunca responder, vale a duração da sessão.
 
 ## Consequências
 
