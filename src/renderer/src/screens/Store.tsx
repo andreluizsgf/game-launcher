@@ -59,7 +59,15 @@ export function Store({ active, libraryVersion, onOpen, onTab, onSettings, onSea
   useEffect(() => {
     if (!active) return
     onBackdrop(
-      focused ? { key: `store-${focused.igdbId}`, url: focused.artUrl ?? focused.coverUrl, wide: !!focused.artUrl, seed: focused.name } : null
+      focused
+        ? {
+            key: `store-${focused.igdbId}`,
+            url: focused.artUrl ?? focused.coverUrl,
+            wide: !!focused.artUrl,
+            fallback: focused.coverUrl,
+            seed: focused.name
+          }
+        : null
     )
   }, [active, focused?.igdbId])
 

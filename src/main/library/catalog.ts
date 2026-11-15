@@ -1,7 +1,8 @@
 import { systemById } from '@shared/systems'
-import type { CatalogHit, Game } from '@shared/types'
+import type { CatalogHit, Game, GameMedia } from '@shared/types'
 import { cacheArt } from '../catalog/art'
 import { IgdbClient, imageUrl, type IgdbGame } from '../catalog/igdb'
+import { mediaQuery, toMedia, type IgdbMediaGame } from '../catalog/media'
 import type { CatalogMeta, GamesRepo } from '../db/games'
 
 /** IGDB-backed metadata: search, add to the library, link a library game to its catalog entry. */
@@ -42,13 +43,23 @@ export class Catalog {
     }))
   }
 
-  /** Adds a catalog game; merges into an installed game with the same title when there is one. */
-  async add(igdbId: number): Promise<Game> {
+  /** Gallery of a catalog game: trailers, screenshots, artworks. */
+  async media(igdbId: number): Promise<GameMedia[]> {
+    const [g] = await this.igdb.query<IgdbMediaGame[]>('games', mediaQuery(igdbId))
+    return g ? toMedia(g) : []
+  }
+
+  /**
+   * Adds a catalog game; merges into an installed game with the same title when there is one.
+   * `platform`: an emulated system id, so the wishlist entry is that console's (and only its ROMs merge).
+   */
+  async add(igdbId: number, platform?: string | null): Promise<Game> {
     const existing = this.repo.byIgdbId(igdbId)
     if (existing) return existing
+    const system = systemById(platform)?.id ?? null
     const meta = await this.fetchMeta(igdbId)
-    const installed = this.repo.findUnlinkedInstalled(meta.title)
-    return installed ? this.repo.applyCatalog(installed.id, meta) : this.repo.addCatalog(meta)
+    const installed = this.repo.findUnlinkedInstalled(meta.title, system)
+    return installed ? this.repo.applyCatalog(installed.id, meta) : this.repo.addCatalog(meta, system)
   }
 
   /** Attaches catalog metadata/art to a library game. */

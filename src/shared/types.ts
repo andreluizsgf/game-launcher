@@ -65,6 +65,8 @@ export interface Settings {
   hasTelegramApiHash: boolean
   /** Bot, group or channel username the game title is sent to. */
   telegramPeer: string | null
+  /** Chat queried for PS2 games: username, t.me link or the chat's display name. */
+  telegramPs2Peer: string | null
   /** Message sent to the peer; `{title}` is replaced by the game title. */
   telegramTemplate: string
   telegramLoggedIn: boolean
@@ -88,6 +90,7 @@ export type SettingsPatch = Partial<
     | 'igdbClientId'
     | 'telegramApiId'
     | 'telegramPeer'
+    | 'telegramPs2Peer'
     | 'telegramTemplate'
     | 'qbWebUrl'
     | 'qbWebUser'
@@ -114,6 +117,11 @@ export interface CatalogHit {
   /** Id of a game already in the library linked to this hit. */
   inLibraryId: number | null
 }
+
+/** One item of a game's gallery: a screenshot/artwork, or a YouTube trailer. */
+export type GameMedia =
+  | { kind: 'image'; thumb: string; full: string }
+  | { kind: 'video'; youtubeId: string; name: string | null; thumb: string }
 
 export interface StoreGame extends CatalogHit {
   releaseDate: number | null
@@ -169,8 +177,12 @@ export interface TgMessage {
   noResults: boolean
 }
 
+/** Which chat a query goes to: the PC one or the PS2 one. */
+export type TgSystem = 'pc' | 'ps2'
+
 /** Replies collected for one query; pushed again every time a message arrives or is edited. */
 export interface TgThread {
+  system: TgSystem
   query: string
   sentAt: number
   messages: TgMessage[]
@@ -282,7 +294,10 @@ export interface LauncherApi {
   /** `platform`: system id of an emulated game, to search that console's catalog instead of PC. */
   catalogSearch(query: string, platform?: string | null): Promise<Result<CatalogHit[]>>
   /** Adds a catalog game; merges into an installed game with the same title when there is one. */
-  catalogAdd(igdbId: number): Promise<Result<Game>>
+  /** `platform`: a system id (e.g. 'ps2') to add the game as that console's; PC when omitted. */
+  catalogAdd(igdbId: number, platform?: string | null): Promise<Result<Game>>
+  /** Trailers, screenshots and artworks of a catalog game, for the gallery in the details. */
+  catalogMedia(igdbId: number): Promise<Result<GameMedia[]>>
   /** Attaches catalog metadata/art to an existing library game. */
   catalogLink(gameId: number, igdbId: number): Promise<Result<Game>>
   storeSections(force?: boolean): Promise<Result<StoreSection[]>>
@@ -296,7 +311,12 @@ export interface LauncherApi {
    * Sends the game title to the peer, unless a recent thread for it exists (`force` resends).
    * `igdbId` lets a download add the game to the library.
    */
-  telegramQuery(title: string, force?: boolean, igdbId?: number | null): Promise<Result<TgThread>>
+  telegramQuery(
+    title: string,
+    force?: boolean,
+    igdbId?: number | null,
+    system?: TgSystem
+  ): Promise<Result<TgThread>>
   /** http(s) opens in the browser; magnet links go to qBittorrent like .torrent files. */
   telegramOpenLink(url: string): Promise<Result<TgDownloadProgress['openedWith']>>
   /** Downloads a message's file; .torrent files go to qBittorrent (saving into the games folder) or the default client. */

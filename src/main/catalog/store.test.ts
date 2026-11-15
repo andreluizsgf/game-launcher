@@ -29,12 +29,20 @@ describe('greatIn', () => {
 })
 
 describe('toStoreGame', () => {
+  const wide = (id: string) => ({ image_id: id, width: 1920, height: 1080 })
   it('prefers artwork over screenshot for the wide art', () => {
     const g = toStoreGame(
-      { id: 1, name: 'X', artworks: [{ image_id: 'art' }], screenshots: [{ image_id: 'shot' }], total_rating: 87.6 },
+      { id: 1, name: 'X', artworks: [wide('art')], screenshots: [wide('shot')], total_rating: 87.6 },
       null
     )
     expect(g.artUrl).toContain('/t_1080p/art.jpg')
     expect(g.rating).toBe(88)
+  })
+  it('skips a portrait artwork for a landscape screenshot, and has no art without one', () => {
+    const poster = { image_id: 'poster', width: 2880, height: 2160 }
+    expect(toStoreGame({ id: 1, name: 'X', artworks: [poster], screenshots: [wide('shot')] }, null).artUrl).toContain(
+      '/shot.jpg'
+    )
+    expect(toStoreGame({ id: 1, name: 'X', artworks: [poster] }, null).artUrl).toBeNull()
   })
 })

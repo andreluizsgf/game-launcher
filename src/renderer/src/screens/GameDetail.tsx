@@ -6,8 +6,11 @@ import { GameArt } from '../components/GameArt'
 import { formatDate, formatDownload, formatPlaytime } from '../format'
 import { useInput } from '../input/useInput'
 import { Achievements } from './Achievements'
+import { MediaStrip } from '../media/MediaStrip'
+import { MediaViewer } from '../media/MediaViewer'
+import { useGameMedia } from '../media/useGameMedia'
 import { TelegramPanel } from '../telegram/TelegramPanel'
-import { telegramMenuLabel, useTelegramThread } from '../telegram/useTelegramThread'
+import { telegramMenuLabel, telegramSystemOf, useTelegramThread, type TgPeers } from '../telegram/useTelegramThread'
 
 interface Props {
   game: Game
@@ -17,8 +20,8 @@ interface Props {
   /** Active download of this game, if any. */
   download: DownloadInfo | null
   gamesRoot: string | null
-  /** Telegram peer to query on open; null when Telegram isn't set up. */
-  telegramPeer: string | null
+  /** Telegram chats; the game's system picks one (PC or PS2). */
+  telegramPeers: TgPeers
   onLaunch(g: Game): void
   onResume(): void
   /** Force-closes the running game. */
@@ -59,7 +62,7 @@ type Item = {
 }
 
 export function GameDetail(props: Props) {
-  const { game, running, installing, download, gamesRoot, telegramPeer, onLaunch, onResume, onStop } = props
+  const { game, running, installing, download, gamesRoot, telegramPeers, onLaunch, onResume, onStop } = props
   const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onEmulatorAction, onIdentify, onRemove, onClose } =
     props
   // Destructive items need a second press.
@@ -81,7 +84,9 @@ export function GameDetail(props: Props) {
   const [tgOpen, setTgOpen] = useState(false)
   // Only message the peer once the user asks; stays on after closing the panel so replies keep arriving.
   const [tgAsked, setTgAsked] = useState(false)
-  const tg = useTelegramThread(game.title, !!telegramPeer && tgAsked, game.igdbId)
+  const tgSystem = telegramSystemOf(game)
+  const telegramPeer = tgSystem ? telegramPeers[tgSystem] : null
+  const tg = useTelegramThread(game.title, !!telegramPeer && tgAsked, game.igdbId, tgSystem ?? 'pc')
   const openTelegram = () => {
     setTgAsked(true)
     setTgOpen(true)
@@ -144,6 +149,11 @@ export function GameDetail(props: Props) {
   ]
   const [sel, setSel] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
+  const media = useGameMedia(game.igdbId)
+  // ↓ past the last row of buttons reaches the gallery strip.
+  const [zone, setZone] = useState<'menu' | 'media'>('menu')
+  const [mediaSel, setMediaSel] = useState(0)
+  const [viewing, setViewing] = useState<number | null>(null)
 
   const run = (it: Item) => {
     if (it.disabled) return
@@ -169,13 +179,29 @@ export function GameDetail(props: Props) {
   }
 
   useInput((a) => {
+    if (zone === 'media') {
+      if (a === 'back' || a === 'up') setZone('menu')
+      else if (a === 'details') onClose()
+      else if (a === 'left') setMediaSel((s) => Math.max(0, s - 1))
+      else if (a === 'right') setMediaSel((s) => Math.min(media.length - 1, s + 1))
+      else if (a === 'confirm' && media[mediaSel]) setViewing(mediaSel)
+      return
+    }
     if (a === 'back' || a === 'details') return onClose()
     if (a === 'left' || a === 'right' || a === 'up' || a === 'down') setConfirm(null)
     if (a === 'left') setSel((s) => Math.max(0, s - 1))
     if (a === 'right') setSel((s) => Math.min(items.length - 1, s + 1))
-    if (a === 'up' || a === 'down') setSel((s) => rowNeighbor(menuRef.current, s, a === 'up' ? -1 : 1))
+    if (a === 'up') setSel((s) => rowNeighbor(menuRef.current, s, -1))
+    if (a === 'down') {
+      const below = rowNeighbor(menuRef.current, sel, 1)
+      if (below !== sel) setSel(below)
+      else if (media.length) {
+        setMediaSel((s) => Math.min(s, media.length - 1))
+        setZone('media')
+      }
+    }
     if (a === 'confirm') run(items[sel])
-  }, !tgOpen && !achOpen)
+  }, !tgOpen && !achOpen && viewing == null)
 
   return (
     <div className="overlay">
@@ -266,9 +292,10 @@ export function GameDetail(props: Props) {
             {items.map((it, i) => (
               <button
                 key={it.id}
-                className={`menu-item ${sel === i ? 'focused' : ''} ${it.danger ? 'danger' : ''}`}
+                className={`menu-item ${zone === 'menu' && sel === i ? 'focused' : ''} ${it.danger ? 'danger' : ''}`}
                 disabled={it.disabled}
                 onClick={() => {
+                  setZone('menu')
                   setSel(i)
                   run(it)
                 }}
@@ -277,6 +304,15 @@ export function GameDetail(props: Props) {
               </button>
             ))}
           </div>
+          <MediaStrip
+            media={media}
+            focused={zone === 'media' ? mediaSel : null}
+            onOpen={(i) => {
+              setZone('media')
+              setMediaSel(i)
+              setViewing(i)
+            }}
+          />
         </div>
       </div>
       <ButtonHints
@@ -285,6 +321,9 @@ export function GameDetail(props: Props) {
           { button: '○', label: 'Voltar' }
         ]}
       />
+      {viewing != null && (
+        <MediaViewer media={media} start={viewing} title={game.title} onClose={() => setViewing(null)} />
+      )}
       {achOpen && achievements && (
         <Achievements title={game.title} data={achievements} onClose={() => setAchOpen(false)} />
       )}

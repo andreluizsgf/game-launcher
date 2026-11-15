@@ -32,10 +32,12 @@ export function registerSettings({ settings, downloads, telegram, library, epic,
     if (patch.qbWebUser !== undefined) settings.qbWebUser = patch.qbWebUser?.trim() || null
     if (patch.qbWebUrl !== undefined || patch.qbWebUser !== undefined || patch.gamesRoot !== undefined) downloads.poke()
     if (patch.telegramTemplate !== undefined) settings.telegramTemplate = patch.telegramTemplate.trim() || '{title}'
-    if (patch.telegramApiId !== undefined || patch.telegramPeer !== undefined) {
+    if (patch.telegramApiId !== undefined || patch.telegramPeer !== undefined || patch.telegramPs2Peer !== undefined) {
       if (patch.telegramApiId !== undefined) settings.telegramApiId = patch.telegramApiId || null
       if (patch.telegramPeer !== undefined)
         settings.telegramPeer = patch.telegramPeer ? normalizePeer(patch.telegramPeer) : null
+      if (patch.telegramPs2Peer !== undefined)
+        settings.telegramPs2Peer = patch.telegramPs2Peer ? normalizePeer(patch.telegramPs2Peer) : null
       await telegram.reset()
     }
     if (patch.openAtLogin !== undefined) {

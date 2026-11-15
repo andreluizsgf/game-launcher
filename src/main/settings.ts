@@ -31,6 +31,8 @@ export interface StoredSettings {
   telegramApiId: number | null
   telegramApiHashEnc: string | null
   telegramPeer: string | null
+  /** Second chat, queried for PS2 games (same account and template). */
+  telegramPs2Peer: string | null
   telegramTemplate: string
   telegramSessionEnc: string | null
   /** Overrides qBittorrent auto-detection. */
@@ -58,6 +60,7 @@ const DEFAULTS: StoredSettings = {
   telegramApiId: null,
   telegramApiHashEnc: null,
   telegramPeer: null,
+  telegramPs2Peer: null,
   telegramTemplate: '{title}',
   telegramSessionEnc: null,
   qbittorrentPath: null,
@@ -105,6 +108,7 @@ export function publicSettings(s: StoredSettings): Settings {
     telegramApiId: s.telegramApiId,
     hasTelegramApiHash: !!s.telegramApiHashEnc,
     telegramPeer: s.telegramPeer,
+    telegramPs2Peer: s.telegramPs2Peer,
     telegramTemplate: s.telegramTemplate,
     telegramLoggedIn: !!s.telegramSessionEnc,
     qbittorrentPath: findQbittorrent(s.qbittorrentPath),
@@ -146,7 +150,7 @@ export function applyOpenAtLogin(enabled: boolean): void {
   app.setLoginItemSettings({ openAtLogin: enabled, path, args: [AUTOSTART_ARG] })
 }
 
-/** Accepts `@name`, `name` or a t.me link. */
+/** Accepts `@name`, `name`, a t.me link or a chat's display name (e.g. "PS2 Torrent Library"). */
 export function normalizePeer(value: string): string | null {
   const v = value
     .trim()

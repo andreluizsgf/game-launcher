@@ -1,6 +1,8 @@
-/** Lowercase alphanumerics only: "The Witcher® 3" → "thewitcher3". */
+/** Lowercase alphanumerics only: "The Witcher® 3" → "thewitcher3", "EA SPORTS FC™ 26" → "easportsfc26". */
 export function normalizeTitle(s: string): string {
   return s
+    // Before NFKD, which spells ™ out as "TM" (and ℠ as "SM").
+    .replace(/[™℠®©]/g, '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()

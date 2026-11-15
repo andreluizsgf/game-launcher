@@ -154,5 +154,16 @@ describe('GamesRepo emulated games', () => {
     r.syncPlatform('emulator', [])
     expect(r.get(id)?.hidden).toBe(true)
   })
+
+  it('attaches a ROM to the wishlist entry of the same console', () => {
+    const r = repo()
+    const pc = r.addCatalog(meta('God of War'))
+    const wish = r.addCatalog({ ...meta('God of War'), igdbId: 999 }, 'ps2')
+    expect(r.findUnlinkedInstalled('God of War', 'ps2')).toBeNull()
+    expect(r.syncPlatform('emulator', [rom('gow', 'God of War')])).toEqual([])
+    expect(r.get(wish.id)).toMatchObject({ source: 'emulator', platform: 'ps2', igdbId: 999 })
+    expect(r.get(wish.id)?.folder).toBe(join('/roms/ps2', 'gow.iso'))
+    expect(r.get(pc.id)?.folder).toBeNull()
+  })
 })
 

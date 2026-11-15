@@ -7,9 +7,10 @@ import { NewMessage, type NewMessageEvent } from 'telegram/events/NewMessage'
 import { LogLevel } from 'telegram/extensions/Logger'
 import { StringSession } from 'telegram/sessions'
 import { getPeerId } from 'telegram/Utils'
-import type { TgDownloadProgress, TgLoginStep, TgMessage, TgThread } from '@shared/types'
+import type { TgDownloadProgress, TgLoginStep, TgMessage, TgSystem, TgThread } from '@shared/types'
 import { decrypt, encrypt, saveSettings, type StoredSettings } from '../settings'
 import type { QbWebApi } from '../downloads/qbWebApi'
+import { systemRomsDir } from '../emulators/romsDir'
 import { addToQbittorrent, findQbittorrent } from './qbittorrent'
 import {
   describeFile,
@@ -31,6 +32,10 @@ const LISTEN_MS = 3 * 60_000
 const REUSE_MS = 30 * 60_000
 
 interface Thread {
+  /** Which chat it went to; decides where the download is saved. */
+  system: TgSystem
+  /** Peer id of that chat: only its replies belong to the thread. */
+  peerId: string
   /** Game title the query was made for; names the folder the download goes into. */
   title: string
   /** Catalog id, so a download can add the game to the library. */
@@ -48,13 +53,14 @@ interface Events {
   thread(t: TgThread): void
   progress(p: TgDownloadProgress): void
   /** A torrent for this game was handed to the torrent client. */
-  downloadStarted(game: { title: string; igdbId: number | null }): void
+  downloadStarted(game: { title: string; igdbId: number | null; system: TgSystem }): void
 }
 
 export class TelegramService {
   private client: TelegramClient | null = null
   private connecting: Promise<TelegramClient> | null = null
-  private peerId: string | null = null
+  /** Resolved chats by configured name; display names need a dialog lookup, so it's done once. */
+  private peers = new Map<string, Api.TypeInputPeer>()
   private threads = new Map<string, Thread>()
   /** Thread currently receiving replies. */
   private active: Thread | null = null
@@ -85,7 +91,7 @@ export class TelegramService {
     const c = this.client
     this.client = null
     this.connecting = null
-    this.peerId = null
+    this.peers.clear()
     this.threads.clear()
     this.active = null
     await c?.disconnect().catch(() => {})
@@ -112,18 +118,38 @@ export class TelegramService {
     return this.connecting
   }
 
-  private async peer(c: TelegramClient): Promise<Api.TypeInputPeer> {
-    const name = this.settings.telegramPeer
-    if (!name) throw new Error('Defina o canal/bot do Telegram em Configurações')
-    const input = await c.getInputEntity(name)
-    this.peerId = getPeerId(input)
+  private async peer(c: TelegramClient, system: TgSystem): Promise<Api.TypeInputPeer> {
+    const name = system === 'ps2' ? this.settings.telegramPs2Peer : this.settings.telegramPeer
+    if (!name) {
+      throw new Error(`Defina o canal/bot do Telegram${system === 'ps2' ? ' para PS2' : ''} em Configurações`)
+    }
+    const known = this.peers.get(name)
+    if (known) return known
+    const input = await this.resolvePeer(c, name)
+    this.peers.set(name, input)
     return input
+  }
+
+  /** Username or t.me link first; otherwise a chat in the account's dialogs with that exact title. */
+  private async resolvePeer(c: TelegramClient, name: string): Promise<Api.TypeInputPeer> {
+    if (/^\S+$/.test(name)) {
+      try {
+        return await c.getInputEntity(name)
+      } catch {
+        // Not a username: maybe the chat's display name.
+      }
+    }
+    const wanted = name.trim().toLowerCase()
+    for await (const d of c.iterDialogs({ limit: 500 })) {
+      if (d.title?.trim().toLowerCase() === wanted && d.inputEntity) return d.inputEntity
+    }
+    throw new Error(`Chat "${name}" não encontrado no Telegram — use o @usuário ou o nome exato da conversa`)
   }
 
   private onMessage(msg: Api.Message): void {
     const t = this.active
-    if (!t || !this.peerId || msg.out || Date.now() - t.lastSentAt > LISTEN_MS) return
-    if (getPeerId(msg.peerId) !== this.peerId) return
+    if (!t || msg.out || Date.now() - t.lastSentAt > LISTEN_MS) return
+    if (getPeerId(msg.peerId) !== t.peerId) return
     t.raw.set(msg.id, msg)
     this.events.thread(this.view(t))
     if (t.awaitingTorrent && msg.document && describeFile(msg.file?.name, msg.file?.mimeType, null).torrent) {
@@ -136,20 +162,24 @@ export class TelegramService {
 
   private view(t: Thread): TgThread {
     const messages = [...t.raw.values()].sort((a, b) => a.id - b.id).map(toTgMessage)
-    return { query: t.query, sentAt: t.sentAt, messages }
+    return { system: t.system, query: t.query, sentAt: t.sentAt, messages }
   }
 
-  async query(title: string, force = false, igdbId: number | null = null): Promise<TgThread> {
+  async query(title: string, force = false, igdbId: number | null = null, system: TgSystem = 'pc'): Promise<TgThread> {
     const text = renderTemplate(this.settings.telegramTemplate, title)
-    const prev = this.threads.get(text)
+    // Same text can go to both chats: the key keeps the PC and PS2 threads apart.
+    const key = `${system}:${text}`
+    const prev = this.threads.get(key)
     if (prev && !force && Date.now() - prev.sentAt < REUSE_MS) {
       prev.igdbId ??= igdbId
       this.active = prev
       return this.view(prev)
     }
     const c = await this.connected()
-    const peer = await this.peer(c)
+    const peer = await this.peer(c, system)
     const t: Thread = {
+      system,
+      peerId: getPeerId(peer),
       title,
       igdbId,
       query: text,
@@ -158,7 +188,7 @@ export class TelegramService {
       awaitingTorrent: false,
       raw: new Map()
     }
-    this.threads.set(text, t)
+    this.threads.set(key, t)
     this.active = t
     await c.sendMessage(peer, { message: text })
     return this.view(t)
@@ -173,12 +203,14 @@ export class TelegramService {
   }
 
   /**
-   * `<games folder>/<game title>`: the torrent's own folder (often a release name like
+   * PC: `<games folder>/<game title>`: the torrent's own folder (often a release name like
    * "Control_Resonant_P_RUS_+_ENG") lands inside one the scanner recognizes by title.
+   * PS2: straight into the ROMs folder's PS2 subfolder, since the ROM scan only looks one level down.
    */
-  private savePathFor(title: string | undefined): string | null {
+  private savePathFor(thread: Thread | null): string | null {
+    if (thread?.system === 'ps2') return systemRomsDir(this.settings.romsRoot, 'ps2')
     const root = this.settings.gamesRoot
-    return root && title ? join(root, gameFolderName(title)) : root
+    return root && thread ? join(root, gameFolderName(thread.title)) : root
   }
 
   async openLink(url: string): Promise<'qbittorrent' | 'default'> {
@@ -206,7 +238,7 @@ export class TelegramService {
       progressCallback: (done) =>
         total && this.events.progress({ msgId, ratio: Math.min(0.99, toNumber(done)! / total) })
     })
-    const savePath = this.savePathFor(thread.title)
+    const savePath = this.savePathFor(thread)
     const openedWith = info.torrent ? await this.openTorrent(path, thread) : 'folder'
     if (openedWith === 'folder') shell.showItemInFolder(path)
     this.events.progress({ msgId, ratio: 1, openedWith, savePath })
@@ -215,8 +247,9 @@ export class TelegramService {
 
   /** qBittorrent saving into `savePath` when installed; the OS default handler otherwise. */
   private async openTorrent(torrent: string, thread: Thread | null): Promise<'qbittorrent' | 'default' | 'folder'> {
-    const via = await this.sendToClient(torrent, this.savePathFor(thread?.title))
-    if (via !== 'folder' && thread) this.events.downloadStarted({ title: thread.title, igdbId: thread.igdbId })
+    const via = await this.sendToClient(torrent, this.savePathFor(thread))
+    if (via !== 'folder' && thread)
+      this.events.downloadStarted({ title: thread.title, igdbId: thread.igdbId, system: thread.system })
     return via
   }
 
@@ -254,7 +287,7 @@ export class TelegramService {
     const c = await this.connected()
     t.lastSentAt = Date.now()
     if (command.startsWith('/download')) t.awaitingTorrent = true
-    await c.sendMessage(await this.peer(c), { message: command })
+    await c.sendMessage(await this.peer(c, t.system), { message: command })
   }
 
   async press(msgId: number, row: number, col: number): Promise<void> {

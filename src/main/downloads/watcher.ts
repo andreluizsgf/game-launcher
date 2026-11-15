@@ -9,7 +9,8 @@ const ETA_INFINITE = 8640000
 
 interface Deps {
   api: QbWebApi
-  gamesRoot(): string | null
+  /** Folders whose torrents are shown: the games folder and the PS2 ROMs folder. */
+  roots(): string[]
   games(): Game[]
   emit(status: DownloadsStatus): void
   /** A torrent in the games folder finished: time to rescan. */
@@ -45,15 +46,15 @@ export class DownloadWatcher {
 
   private async tick(): Promise<void> {
     let next = POLL_MS
-    const root = this.deps.gamesRoot()
+    const roots = this.deps.roots()
     try {
-      const items = root ? this.toItems(await this.deps.api.torrents(), root) : []
+      const items = roots.length ? this.toItems(await this.deps.api.torrents(), roots) : []
       for (const it of items) {
         const prev = this.lastState.get(it.hash)
         if (prev && prev !== 'done' && it.state === 'done') this.deps.onCompleted(it)
         this.lastState.set(it.hash, it.state)
       }
-      this.publish({ available: !!root, items })
+      this.publish({ available: roots.length > 0, items })
     } catch {
       next = OFFLINE_POLL_MS
       this.publish({ available: false, items: [] })
@@ -61,11 +62,13 @@ export class DownloadWatcher {
     this.timer = setTimeout(() => this.tick(), next)
   }
 
-  private toItems(torrents: Awaited<ReturnType<QbWebApi['torrents']>>, root: string): DownloadInfo[] {
+  private toItems(torrents: Awaited<ReturnType<QbWebApi['torrents']>>, roots: string[]): DownloadInfo[] {
     const games = this.deps.games()
     const out: DownloadInfo[] = []
     for (const t of torrents) {
-      const folder = gameFolderOf(t, root)
+      let root = ''
+      let folder: string | null = null
+      for (const r of roots) if (!folder && (folder = gameFolderOf(t, r))) root = r
       if (!folder) continue
       const game = matchGame(folder, root, games)
       out.push({

@@ -107,6 +107,11 @@ Manda o nome do jogo pra um bot/canal do Telegram e mostra as respostas (links, 
 
 No detalhe de um jogo, botão **Telegram**. A mensagem só é enviada quando você aperta.
 
+**Jogos de PS2:** em **Telegram canal PS2**, informe o segundo chat (`@usuario`, link `t.me/...` ou o nome exato da
+conversa, ex.: `PS2 Torrent Library`). Na busca (**Adicionar jogo**), troque de **PC** para **PS2** com **L1/R1**: os
+resultados vêm do catálogo de PS2 do IGDB. No detalhe de um jogo de PS2, o botão **Telegram** pergunta nesse chat, e o
+torrent baixa direto na subpasta de PS2 da pasta de ROMs. Quando o download termina, a ROM ocupa o lugar do jogo na lista.
+
 ### Conquistas (opcional)
 
 Instale o [Achievement Watcher Next](https://github.com/Shirowwww/Achievement-Watcher-Next) e deixe ele escanear seus jogos. O launcher lê o que ele encontrou e mostra **Conquistas · x/y** no detalhe do jogo. Nada a configurar.

@@ -1,23 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { TgThread } from '@shared/types'
+import type { Game, Settings, TgSystem, TgThread } from '@shared/types'
 
 export type TgState =
   { status: 'off' } | { status: 'sending' } | { status: 'error'; error: string } | { status: 'ready'; thread: TgThread }
 
+/** Configured chats; a null one isn't set up (or Telegram isn't signed in). */
+export interface TgPeers {
+  pc: string | null
+  ps2: string | null
+}
+
+export function telegramPeers(s: Settings | null): TgPeers {
+  const on = !!s?.telegramLoggedIn
+  return { pc: (on && s?.telegramPeer) || null, ps2: (on && s?.telegramPs2Peer) || null }
+}
+
+/** Which chat a library game is asked in: PC games the PC one, PS2 ROMs/wishlist the PS2 one, others none. */
+export function telegramSystemOf(game: Pick<Game, 'platform'>): TgSystem | null {
+  if (!game.platform) return 'pc'
+  return game.platform === 'ps2' ? 'ps2' : null
+}
+
+/** "@bot" for usernames; a display name (with spaces) as is. */
+export const peerLabel = (peer: string | null) => (!peer ? '?' : /\s/.test(peer) ? peer : `@${peer}`)
+
 /** Sends the title to the Telegram peer while `enabled` and follows the replies as they arrive. */
-export function useTelegramThread(title: string, enabled: boolean, igdbId: number | null = null) {
+export function useTelegramThread(
+  title: string,
+  enabled: boolean,
+  igdbId: number | null = null,
+  system: TgSystem = 'pc'
+) {
   const [state, setState] = useState<TgState>({ status: enabled ? 'sending' : 'off' })
   const query = useRef<string | null>(null)
 
   const send = useCallback(
     async (force: boolean) => {
       setState({ status: 'sending' })
-      const res = await window.api.telegramQuery(title, force, igdbId)
+      const res = await window.api.telegramQuery(title, force, igdbId, system)
       if (!res.ok) return setState({ status: 'error', error: res.error })
       query.current = res.value.query
       setState({ status: 'ready', thread: res.value })
     },
-    [title, igdbId]
+    [title, igdbId, system]
   )
 
   useEffect(() => {
@@ -28,9 +53,9 @@ export function useTelegramThread(title: string, enabled: boolean, igdbId: numbe
   useEffect(
     () =>
       window.api.onTelegramThread((t) => {
-        if (t.query === query.current) setState({ status: 'ready', thread: t })
+        if (t.query === query.current && t.system === system) setState({ status: 'ready', thread: t })
       }),
-    []
+    [system]
   )
 
   return { state, resend: () => send(true) }

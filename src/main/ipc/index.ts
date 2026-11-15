@@ -7,6 +7,7 @@ import type { GamesRepo } from '../db/games'
 import { mockQbWebApi } from '../downloads/qbMock'
 import { QbWebApi } from '../downloads/qbWebApi'
 import { DownloadWatcher } from '../downloads/watcher'
+import { systemRomsDir } from '../emulators/romsDir'
 import { Catalog } from '../library/catalog'
 import { Library } from '../library/library'
 import type { Runner } from '../library/runner'
@@ -46,7 +47,8 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   // Library ⇄ downloads: a finished download triggers a rescan; uninstalling re-polls downloads.
   const downloads: DownloadWatcher = new DownloadWatcher({
     api: qbWeb,
-    gamesRoot: () => settings.gamesRoot,
+    // PS2 downloads from the Telegram chat save into the ROMs folder; list them too.
+    roots: () => [settings.gamesRoot, systemRomsDir(settings.romsRoot, 'ps2')].filter((r): r is string => !!r),
     games: () => repo.list(),
     emit: (status) => send('downloads:update', status),
     onCompleted: async (item) => {
@@ -79,11 +81,11 @@ export function registerIpc({ repo, runner, settings, getWindow }: Deps): void {
   const telegram = new TelegramService(settings, qbWeb, {
     thread: (t) => send('telegram:thread', t),
     progress: (p) => send('telegram:progress', p),
-    downloadStarted: async ({ title, igdbId }) => {
+    downloadStarted: async ({ title, igdbId, system }) => {
       downloads.poke()
       if (!igdbId || repo.byIgdbId(igdbId)) return
       try {
-        await catalog.add(igdbId)
+        await catalog.add(igdbId, system === 'ps2' ? 'ps2' : null)
         send('library:changed', `${title} adicionado à biblioteca`)
       } catch {
         // Download still runs; the game shows up when the scan finds its folder.

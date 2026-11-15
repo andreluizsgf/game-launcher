@@ -1,4 +1,4 @@
-import type { StoreGame, StoreSection } from '@shared/types'
+import type { GameMedia, StoreGame, StoreSection } from '@shared/types'
 
 /** Dev-only fake store (`GL_STORE_MOCK=1`) to work on the UI without IGDB credentials. */
 const svg = (w: number, h: number, hue: number, label: string) =>
@@ -40,4 +40,18 @@ export function mockSections(): StoreSection[] {
   const titles = ['Em alta agora', 'Melhores do ano', 'Lançamentos recentes', 'Mais aguardados', 'Clássicos aclamados']
   const ids = ['trending', 'bestOfYear', 'newReleases', 'upcoming', 'classics']
   return titles.map((title, s) => ({ id: ids[s], title, games: Array.from({ length: 12 }, (_, i) => game(i, s)) }))
+}
+
+/** A real trailer (so the player can be checked) plus fake screenshots. */
+export function mockMedia(): GameMedia[] {
+  const shots = [0, 1, 2, 3, 4].map((i) => svg(1920, 1080, i * 70, `Screenshot ${i + 1}`))
+  return [
+    {
+      kind: 'video',
+      youtubeId: 'TSi0iJYSQ24',
+      name: 'Trailer',
+      thumb: 'https://i.ytimg.com/vi/TSi0iJYSQ24/hqdefault.jpg'
+    },
+    ...shots.map((u): GameMedia => ({ kind: 'image', thumb: u, full: u }))
+  ]
 }

@@ -134,27 +134,28 @@ export class Library {
       if (!g?.externalId) return
       const art = steamArt(g.externalId)
       await save(id, `steam-${g.externalId}`, art.cover, art.art)
-      await this.linkByTitle(id)
     })
     const epicJobs = epicIds.map((id) => async () => {
       const g = repo.get(id)
       if (!g?.externalId) return
       const art = epicArt.get(g.externalId)
       if (art) await save(id, `epic-${g.externalId.replace(/[^\w-]/g, '_')}`, art.cover, art.wide)
-      await this.linkByTitle(id)
     })
     await pool([...steamJobs, ...epicJobs], 6)
+    // IGDB allows 4 requests/s: linking goes at its own, slower pace.
+    await pool([...steamIds, ...epicIds].map((id) => () => this.linkByTitle(id)), 2)
   }
 
   /**
-   * Installed store games get catalog data (summary, genres, art) from IGDB by title, when it's set up.
-   * IGDB's 16:9 key art beats Steam's library_hero (a 3:1 strip that a 16:9 backdrop blows up and crops);
-   * the store's art stays when IGDB has nothing landscape.
+   * Store games (installed or only owned) get catalog data (summary, genres, art) from IGDB by title, when
+   * it's set up. IGDB's 16:9 art beats Steam's library_hero (a 3:1 strip, sometimes just a pattern made to
+   * sit behind the logo, that a 16:9 backdrop blows up and crops); the store's art stays when IGDB has
+   * nothing landscape.
    */
   private async linkByTitle(id: number): Promise<void> {
     const { repo, settings, catalog } = this.d
     const g = repo.get(id)
-    if (!g?.folder || g.igdbId != null || !igdbCredentials(settings)) return
+    if (!g || g.igdbId != null || !igdbCredentials(settings)) return
     try {
       const hit = (await catalog.igdb.search(g.title)).find((h) => titlesMatch(h.name, g.title))
       if (!hit || repo.byIgdbId(hit.id)) return
@@ -199,7 +200,12 @@ export class Library {
       const system = systemById(g?.platform)
       if (!g || !system) return
       const hit = (await catalog.igdb.search(g.title, system.igdbPlatform)).find((h) => titlesMatch(h.name, g.title))
-      if (hit && !repo.byIgdbId(hit.id)) repo.applyCatalog(id, await catalog.toMeta(hit))
+      if (!hit) return
+      const other = repo.byIgdbId(hit.id)
+      // Wishlisted from the search (e.g. downloaded via the PS2 chat): the ROM takes its place.
+      if (other && !other.folder && other.platform === g.platform) repo.removeCatalog(other.id)
+      else if (other) return
+      repo.applyCatalog(id, await catalog.toMeta(hit))
     })
     // IGDB allows 4 requests/s; a first ROMs scan can be hundreds of games.
     await pool(jobs, 2)
@@ -363,8 +369,11 @@ export class Library {
   }
 }
 
-/** Bump when cacheArt picks or sizes images differently: linked games get their art again. */
-const ART_VERSION = 2
+/**
+ * Bump when cacheArt picks or sizes images differently: linked games get their art again.
+ * 3: owned-only Steam/Epic games get linked to IGDB too (they kept the Steam hero strip).
+ */
+const ART_VERSION = 3
 
 const norm = (p: string) =>
   resolve(p)

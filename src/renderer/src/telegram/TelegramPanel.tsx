@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { TgMessage } from '@shared/types'
 import { ButtonHints } from '../components/ButtonHints'
 import { useInput } from '../input/useInput'
-import type { TgState } from './useTelegramThread'
+import { peerLabel, type TgState } from './useTelegramThread'
 
 interface Props {
   title: string
@@ -52,8 +52,8 @@ const ICON: Record<string, string> = {
 }
 
 const OPENED = {
-  qbittorrent: 'Enviado ao qBittorrent — baixando na pasta de jogos',
-  noGamesRoot: 'Enviado ao qBittorrent, mas sem pasta de jogos definida — ele usa a pasta padrão dele',
+  qbittorrent: 'Enviado ao qBittorrent',
+  noGamesRoot: 'Enviado ao qBittorrent, mas sem pasta de jogos/ROMs definida — ele usa a pasta padrão dele',
   default: 'qBittorrent não encontrado (veja Configurações) — aberto no cliente de torrent padrão',
   folder: 'Arquivo salvo em Downloads/Game Launcher'
 }
@@ -136,7 +136,7 @@ export function TelegramPanel({ title, peer, state, onResend, onClose }: Props) 
       : state.status === 'error'
         ? state.error
         : state.status === 'ready' && messages.length === 0
-          ? `Aguardando resposta de @${peer ?? '?'}…`
+          ? `Aguardando resposta de ${peerLabel(peer)}…`
           : null
 
   return (

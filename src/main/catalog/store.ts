@@ -1,5 +1,5 @@
 import type { StoreGame, StoreSection } from '@shared/types'
-import { pickWide } from './art'
+import { hasWideArt, pickWide } from './art'
 import { FIELDS, imageUrl, PC_WINDOWS, type IgdbClient, type IgdbGame, type PopularityPrimitive } from './igdb'
 
 const DAY = 86_400
@@ -111,7 +111,8 @@ const SECTIONS: SectionDef[] = [
 ]
 
 export function toStoreGame(g: IgdbGame, inLibraryId: number | null): StoreGame {
-  const wide = pickWide(g)
+  // Only real landscape art: a portrait fallback cropped to the backdrop looks broken.
+  const wide = hasWideArt(g) ? pickWide(g) : null
   return {
     igdbId: g.id,
     name: g.name,

@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import type { TgSystem } from '@shared/types'
 import { publicSettings } from '../settings'
 import type { IpcContext } from './context'
 import { handle } from './result'
@@ -13,8 +14,8 @@ export function registerTelegram({ telegram, settings }: IpcContext): void {
     return publicSettings(settings)
   })
 
-  handle('telegram:query', (title: string, force?: boolean, igdbId?: number | null) =>
-    telegram.query(title, force, igdbId ?? null)
+  handle('telegram:query', (title: string, force?: boolean, igdbId?: number | null, system?: TgSystem) =>
+    telegram.query(title, force, igdbId ?? null, system === 'ps2' ? 'ps2' : 'pc')
   )
   handle('telegram:openLink', (url: string) => telegram.openLink(url))
   handle('telegram:download', (msgId: number) => telegram.download(msgId))

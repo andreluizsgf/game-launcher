@@ -5,6 +5,7 @@ import { ButtonHints } from '../components/ButtonHints'
 import { TextEntry } from '../components/TextEntry'
 import { formatBytes } from '../format'
 import { useInput } from '../input/useInput'
+import { peerLabel } from '../telegram/useTelegramThread'
 
 interface Props {
   settings: S
@@ -31,6 +32,7 @@ type TgField =
   | 'tgApiId'
   | 'tgApiHash'
   | 'tgPeer'
+  | 'tgPs2Peer'
   | 'tgTemplate'
   | 'tgPhone'
   | 'tgCode'
@@ -44,6 +46,10 @@ const TG_ENTRY: Record<TgField, { title: string; hint: string; secret?: boolean 
   tgApiId: { title: 'Telegram API ID', hint: 'Número do app criado em my.telegram.org → API development tools.' },
   tgApiHash: { title: 'Telegram API Hash', hint: 'Dá pra colar com Ctrl+V.', secret: true },
   tgPeer: { title: 'Canal / bot do Telegram', hint: '@usuario ou link t.me — recebe o nome do jogo quando você aperta Telegram no detalhe.' },
+  tgPs2Peer: {
+    title: 'Canal / bot do Telegram para PS2',
+    hint: '@usuario, link t.me ou o nome exato da conversa (ex.: PS2 Torrent Library) — usado nos jogos de PS2.'
+  },
   tgTemplate: { title: 'Mensagem enviada', hint: '{title} vira o nome do jogo. Ex.: /search {title}' },
   tgPhone: { title: 'Seu telefone', hint: 'Com DDI, ex.: +5511999998888. O Telegram vai mandar um código.' },
   tgCode: { title: 'Código do Telegram', hint: 'Chegou no app do Telegram (ou por SMS).' },
@@ -89,6 +95,7 @@ export function Settings(props: Props) {
       return onSettings(await window.api.setSettings({ telegramApiId: v.trim() ? id : null }))
     }
     if (field === 'tgPeer') return onSettings(await window.api.setSettings({ telegramPeer: v }))
+    if (field === 'tgPs2Peer') return onSettings(await window.api.setSettings({ telegramPs2Peer: v }))
     if (field === 'qbUrl') return onSettings(await window.api.setSettings({ qbWebUrl: v }))
     if (field === 'qbUser') return onSettings(await window.api.setSettings({ qbWebUser: v }))
     if (field === 'qbPass') return onSettings(await window.api.setQbWebPassword(v))
@@ -204,7 +211,8 @@ export function Settings(props: Props) {
     { label: 'IGDB Client Secret', value: settings.hasIgdbSecret ? '••••••••' : 'Não definido', run: () => setEditing('secret') },
     { label: 'Telegram API ID', value: settings.telegramApiId?.toString() ?? 'Não definido', run: () => setEditing('tgApiId') },
     { label: 'Telegram API Hash', value: settings.hasTelegramApiHash ? '••••••••' : 'Não definido', run: () => setEditing('tgApiHash') },
-    { label: 'Telegram canal / bot', value: settings.telegramPeer ? `@${settings.telegramPeer}` : 'Não definido', run: () => setEditing('tgPeer') },
+    { label: 'Telegram canal / bot', value: settings.telegramPeer ? peerLabel(settings.telegramPeer) : 'Não definido', run: () => setEditing('tgPeer') },
+    { label: 'Telegram canal PS2', value: settings.telegramPs2Peer ? peerLabel(settings.telegramPs2Peer) : 'Não definido', run: () => setEditing('tgPs2Peer') },
     { label: 'Telegram mensagem', value: settings.telegramTemplate, run: () => setEditing('tgTemplate') },
     settings.telegramLoggedIn
       ? {
@@ -274,7 +282,8 @@ export function Settings(props: Props) {
         <p className="settings-note">
           Telegram: crie um app em my.telegram.org (API development tools) para obter API ID e Hash, defina o canal ou
           bot e entre com sua conta. No detalhe de um jogo, o botão Telegram envia o nome dele e mostra as respostas em
-          “Telegram”. Hash e sessão ficam criptografados.
+          “Telegram”. Jogos de PS2 (adicione com L1/R1 na busca) perguntam no canal PS2 e baixam na pasta de ROMs.
+          Hash e sessão ficam criptografados.
         </p>
         <p className="settings-note">
           qBittorrent: os torrents vão pra pasta de jogos, numa subpasta com o nome do jogo. Para ver o progresso no app,
@@ -289,17 +298,16 @@ export function Settings(props: Props) {
           hint={TG_ENTRY[editing].hint}
           secret={TG_ENTRY[editing].secret}
           initial={
-            editing === 'tgApiId'
-              ? (settings.telegramApiId?.toString() ?? '')
-              : editing === 'tgPeer'
-                ? (settings.telegramPeer ?? '')
-                : editing === 'tgTemplate'
-                  ? settings.telegramTemplate
-                  : editing === 'qbUrl'
-                    ? settings.qbWebUrl
-                    : editing === 'qbUser'
-                      ? (settings.qbWebUser ?? '')
-                      : ''
+            (
+              {
+                tgApiId: settings.telegramApiId?.toString(),
+                tgPeer: settings.telegramPeer,
+                tgPs2Peer: settings.telegramPs2Peer,
+                tgTemplate: settings.telegramTemplate,
+                qbUrl: settings.qbWebUrl,
+                qbUser: settings.qbWebUser
+              } as Partial<Record<TgField, string | null | undefined>>
+            )[editing] ?? ''
           }
           onSubmit={(v) => submitTg(editing, v)}
           onCancel={() => setEditing(null)}

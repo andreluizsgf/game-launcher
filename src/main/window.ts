@@ -18,6 +18,20 @@ function grantSonyHid(w: BrowserWindow): void {
   })
 }
 
+/**
+ * YouTube refuses to play embeds without a Referer ("error 153"), and the packaged renderer is a file://
+ * page that sends none. Trailers in the gallery are youtube-nocookie embeds: give them one.
+ */
+function allowYoutubeEmbeds(w: BrowserWindow): void {
+  w.webContents.session.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube-nocookie.com/*'] },
+    (details, callback) => {
+      if (!details.requestHeaders.Referer) details.requestHeaders.Referer = 'https://www.youtube-nocookie.com/'
+      callback({ requestHeaders: details.requestHeaders })
+    }
+  )
+}
+
 export function createMainWindow(fullscreen: boolean): BrowserWindow {
   const win = new BrowserWindow({
     width: 1600,
@@ -36,6 +50,7 @@ export function createMainWindow(fullscreen: boolean): BrowserWindow {
     }
   })
   grantSonyHid(win)
+  allowYoutubeEmbeds(win)
   win.once('ready-to-show', () => {
     win.show()
     // Windows sometimes ignores the constructor flag when the window starts hidden.

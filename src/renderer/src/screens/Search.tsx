@@ -9,6 +9,12 @@ const DEBOUNCE_MS = 500
 
 export type SearchMode = { kind: 'add' } | { kind: 'link'; game: Game }
 
+/** Catalogs the "add" search can browse; null = PC (IGDB's Windows platform). */
+const PLATFORMS: { id: string | null; label: string }[] = [
+  { id: null, label: 'PC' },
+  { id: 'ps2', label: 'PS2' }
+]
+
 interface Props {
   mode: SearchMode
   onDone(game: Game): void
@@ -28,6 +34,14 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
   const [zone, setZone] = useState<'kb' | 'results'>('kb')
   const [sel, setSel] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [platformIdx, setPlatformIdx] = useState(0)
+  // Linking searches the game's own system; adding, the platform picked with L1/R1.
+  const platform = mode.kind === 'link' ? mode.game.platform : PLATFORMS[platformIdx].id
+  const switchPlatform = (dir: -1 | 1) => {
+    if (mode.kind !== 'add') return
+    setPlatformIdx((i) => (i + dir + PLATFORMS.length) % PLATFORMS.length)
+    setZone('kb')
+  }
   const seq = useRef(0)
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -36,7 +50,7 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
     if (text.length < 2) return setState({ kind: 'idle' })
     const id = ++seq.current
     setState({ kind: 'loading' })
-    const res = await window.api.catalogSearch(text, mode.kind === 'link' ? mode.game.platform : null)
+    const res = await window.api.catalogSearch(text, platform)
     if (id !== seq.current) return // a newer search superseded this one
     setState(res.ok ? { kind: 'results', hits: res.value } : { kind: 'error', message: res.error })
     setSel(0)
@@ -46,7 +60,7 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
   useEffect(() => {
     const t = setTimeout(() => run(query), DEBOUNCE_MS)
     return () => clearTimeout(t)
-  }, [query])
+  }, [query, platform])
 
   const hits = state.kind === 'results' ? state.hits : []
 
@@ -56,7 +70,7 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
     setBusy(true)
     const res =
       mode.kind === 'add'
-        ? await window.api.catalogAdd(hit.igdbId)
+        ? await window.api.catalogAdd(hit.igdbId, platform)
         : await window.api.catalogLink(mode.game.id, hit.igdbId)
     setBusy(false)
     if (!res.ok) return notify(res.error)
@@ -72,6 +86,8 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
     else if (a === 'up') setSel(Math.max(col, sel - COLS))
     else if (a === 'down') setSel(Math.min(hits.length - 1, sel + COLS))
     else if (a === 'confirm' && hits[sel]) choose(hits[sel])
+    else if (a === 'pageLeft') switchPlatform(-1)
+    else if (a === 'pageRight') switchPlatform(1)
   }, zone === 'results')
 
   useEffect(() => {
@@ -88,6 +104,21 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
       <div className="search">
         <aside className="search-left">
           <h1>{mode.kind === 'add' ? 'Adicionar jogo' : `Identificar "${mode.game.title}"`}</h1>
+          {mode.kind === 'add' && (
+            <div className="search-platforms">
+              <span className="search-platforms-btn">L1</span>
+              {PLATFORMS.map((p, i) => (
+                <button
+                  key={p.label}
+                  className={`search-platform ${i === platformIdx ? 'active' : ''}`}
+                  onClick={() => setPlatformIdx(i)}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <span className="search-platforms-btn">R1</span>
+            </div>
+          )}
           <div className={`field ${zone === 'kb' ? 'active' : ''}`} onClick={() => setZone('kb')}>
             {query || <span className="placeholder">Nome do jogo</span>}
             {zone === 'kb' && <span className="caret" />}
@@ -99,6 +130,7 @@ export function Search({ mode, onDone, onClose, notify }: Props) {
             onExitRight={enterResults}
             onBack={onClose}
             onActivate={() => setZone('kb')}
+            onPage={switchPlatform}
             active={zone === 'kb'}
           />
         </aside>

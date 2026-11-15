@@ -15,6 +15,8 @@ interface Props {
   onBack(): void
   /** Mouse click on a key while inactive (e.g. focus was on search results). */
   onActivate?(): void
+  /** L1/R1 while typing (e.g. switching the search platform). */
+  onPage?(dir: -1 | 1): void
   active: boolean
   maxLength?: number
 }
@@ -23,7 +25,8 @@ interface Props {
  * PS-style on-screen keyboard. D-pad moves, ✕ types, □ deletes, R2 submits.
  * Also accepts physical keyboard typing and paste while mounted.
  */
-export function VirtualKeyboard({ value, onChange, onSubmit, onExitRight, onBack, onActivate, active, maxLength = 200 }: Props) {
+export function VirtualKeyboard(props: Props) {
+  const { value, onChange, onSubmit, onExitRight, onBack, onActivate, onPage, active, maxLength = 200 } = props
   const [pos, setPos] = useState({ r: 1, c: 0 })
   // Refs so the physical-keyboard sink (registered once) always sees fresh props.
   const valueRef = useRef(value)
@@ -71,6 +74,8 @@ export function VirtualKeyboard({ value, onChange, onSubmit, onExitRight, onBack
     } else if (a === 'secondary') del()
     else if (a === 'submit') onSubmit()
     else if (a === 'back') onBack()
+    else if (a === 'pageLeft') onPage?.(-1)
+    else if (a === 'pageRight') onPage?.(1)
     else if (a === 'confirm') press(row[pos.c])
   }, active)
 

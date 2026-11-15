@@ -90,11 +90,12 @@ export class GamesRepo {
   }
 
   /** Installed game without catalog link whose title matches — candidate for merging a catalog add. */
-  findUnlinkedInstalled(title: string): Game | null {
+  /** `platform`: only that system's games (ROMs); omitted = any game, as before. */
+  findUnlinkedInstalled(title: string, platform: string | null = null): Game | null {
     const rows = this.db
       .prepare('SELECT * FROM games WHERE folder IS NOT NULL AND igdb_id IS NULL AND hidden = 0')
       .all() as GameRow[]
-    const hit = rows.find((r) => titlesMatch(r.title, title))
+    const hit = rows.find((r) => (!platform || r.platform === platform) && titlesMatch(r.title, title))
     return hit ? toGame(hit) : null
   }
 
@@ -110,7 +111,8 @@ export class GamesRepo {
     const rows = all.filter((r) => r.source === 'folder')
     const byFolder = new Map(rows.filter((r) => r.folder).map((r) => [r.folder!, r]))
     const scannedFolders = new Set(scanned.map((g) => g.folder))
-    const pending = rows.filter((r) => !r.folder)
+    // Console wishlist entries (platform set) wait for their ROM, not a PC folder.
+    const pending = rows.filter((r) => !r.folder && !r.platform)
     // Rows whose folder is gone: a new folder with the same title is the same game, moved or renamed.
     const moved = rows.filter((r) => r.folder && !scannedFolders.has(r.folder))
 
@@ -261,8 +263,10 @@ export class GamesRepo {
         }
         if (!g.folder && inGamesFolder.some((r) => titlesMatch(r.title, g.title))) continue
         const same = g.folder ? byFolder.get(g.folder.toLowerCase()) : undefined
-        // A ROM is never the PC game of the same name on the wishlist.
-        const idx = same || source === 'emulator' ? -1 : pending.findIndex((p) => titlesMatch(p.title, g.title))
+        // A ROM only takes the place of a wishlist entry of its own console, never the PC game of the same name.
+        const sameSystem = (p: GameRow) => (source === 'emulator' ? !!p.platform && p.platform === g.platform : !p.platform)
+        const fits = (p: GameRow) => sameSystem(p) && titlesMatch(p.title, g.title)
+        const idx = same ? -1 : pending.findIndex(fits)
         const target = same ?? (idx >= 0 ? pending.splice(idx, 1)[0] : null)
         if (target) attach.run(source, g.externalId, g.folder, g.exePath, g.launchUri, target.id)
         else {
@@ -302,11 +306,13 @@ export class GamesRepo {
       .run(coverPath, artPath, gameId)
   }
 
-  addCatalog(meta: CatalogMeta): Game {
+  /** A wishlist game (no folder); `platform` marks a console game, e.g. 'ps2'. */
+  addCatalog(meta: CatalogMeta, platform: string | null = null): Game {
     const res = this.db
       .prepare(
-        `INSERT INTO games (title, igdb_id, summary, release_year, release_date, genres, cover_path, art_path, added_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO games
+           (title, igdb_id, summary, release_year, release_date, genres, cover_path, art_path, added_at, platform)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         meta.title,
@@ -317,7 +323,8 @@ export class GamesRepo {
         JSON.stringify(meta.genres),
         meta.coverPath,
         meta.artPath,
-        Date.now()
+        Date.now(),
+        platform
       )
     return this.get(Number(res.lastInsertRowid))!
   }

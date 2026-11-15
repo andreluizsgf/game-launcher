@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import type { EmulatorAction, GameAchievements } from '@shared/types'
-import { mockSections } from '../catalog/storeMock'
+import { mockMedia, mockSections } from '../catalog/storeMock'
 import { bringToFront, getOutOfTheWay } from '../window'
 import type { IpcContext } from './context'
 import { handle } from './result'
@@ -28,7 +28,8 @@ export function registerLibrary({ repo, library, catalog, store, awn, settings, 
   handle('game:emulatorAction', (gameId: number, action: EmulatorAction) => library.emulatorAction(gameId, action))
 
   handle('catalog:search', (query: string, platform?: string | null) => catalog.search(query, platform))
-  handle('catalog:add', (igdbId: number) => catalog.add(igdbId))
+  handle('catalog:add', (igdbId: number, platform?: string | null) => catalog.add(igdbId, platform))
+  handle('catalog:media', (igdbId: number) => (process.env.GL_STORE_MOCK ? mockMedia() : catalog.media(igdbId)))
   handle('catalog:link', (gameId: number, igdbId: number) => catalog.link(gameId, igdbId))
   handle('store:sections', (force?: boolean) => (process.env.GL_STORE_MOCK ? mockSections() : store.sections(force)))
 

@@ -19,6 +19,7 @@ import { Search, type SearchMode } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
 import { StoreDetail } from './screens/StoreDetail'
+import { telegramPeers } from './telegram/useTelegramThread'
 
 type Overlay =
   | { kind: 'none' }
@@ -94,9 +95,15 @@ export function App() {
 
   const { game } = lib
   const homeArt: BackdropArt | null = game
-    ? { key: `game-${game.id}`, url: mediaUrl(game.artPath ?? game.coverPath), wide: !!game.artPath, seed: game.title }
+    ? {
+        key: `game-${game.id}`,
+        url: mediaUrl(game.artPath ?? game.coverPath),
+        wide: !!game.artPath,
+        fallback: game.coverPath ? mediaUrl(game.coverPath) : null,
+        seed: game.title
+      }
     : null
-  const telegramPeer = settings?.telegramLoggedIn && settings.telegramPeer ? settings.telegramPeer : null
+  const tgPeers = telegramPeers(settings)
   const detailGame = overlay.kind === 'detail' ? lib.games.find((g) => g.id === overlay.gameId) : undefined
   const playing = session.runningId != null ? (lib.games.find((g) => g.id === session.runningId)?.title ?? null) : null
 
@@ -155,7 +162,7 @@ export function App() {
       {overlay.kind === 'storeDetail' && (
         <StoreDetail
           game={overlay.game}
-          telegramPeer={telegramPeer}
+          telegramPeer={tgPeers.pc}
           onAdd={async (sg) => {
             const res = await window.api.catalogAdd(sg.igdbId)
             if (!res.ok) return notify(res.error)
@@ -174,7 +181,7 @@ export function App() {
           installing={installingId === detailGame.id}
           download={lib.dlByGame.get(detailGame.id) ?? null}
           gamesRoot={settings?.gamesRoot ?? null}
-          telegramPeer={telegramPeer}
+          telegramPeers={tgPeers}
           onLaunch={session.launch}
           onResume={session.resume}
           onStop={session.stop}
