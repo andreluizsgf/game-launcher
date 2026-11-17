@@ -134,6 +134,7 @@ export interface StoreGame extends CatalogHit {
   screenshots: string[]
 }
 
+/** Store row. The one with id 'featured' (first, when present) feeds the banner instead of a row. */
 export interface StoreSection {
   id: string
   title: string

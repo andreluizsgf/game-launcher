@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sectionQueries, toStoreGame } from './store'
+import type { IgdbGame } from './igdb'
+import { pickFeatured, sampleInOrder, sectionQueries, toStoreGame } from './store'
 
 describe('sectionQueries', () => {
   const now = 1_790_000_000
@@ -44,5 +45,55 @@ describe('toStoreGame', () => {
       '/shot.jpg'
     )
     expect(toStoreGame({ id: 1, name: 'X', artworks: [poster] }, null).artUrl).toBeNull()
+  })
+})
+
+describe('pickFeatured', () => {
+  const now = 1_790_000_000
+  const art = { artworks: [{ image_id: 'a', width: 1920, height: 1080 }] }
+  const g = (id: number, extra: Partial<IgdbGame>): IgdbGame => ({ id, name: `G${id}`, ...art, ...extra })
+  const recent = now - 100 * 86_400
+
+  it('keeps recent, good or hyped games with wide art, skipping evergreens and duplicates', () => {
+    const picked = pickFeatured(
+      [
+        {
+          id: 'trending',
+          games: [
+            g(1, { first_release_date: now - 20 * 365 * 86_400, total_rating: 90, total_rating_count: 999 }),
+            g(2, { first_release_date: recent, total_rating: 85, total_rating_count: 40 }),
+            g(3, { first_release_date: recent, total_rating: 60, total_rating_count: 40 }),
+            g(4, { first_release_date: now + 86_400, hypes: 30 }),
+            { id: 5, name: 'no art', first_release_date: recent, total_rating: 90, total_rating_count: 40 }
+          ]
+        },
+        {
+          id: 'newReleases',
+          games: [g(2, { first_release_date: recent, total_rating: 85, total_rating_count: 40 })]
+        },
+        { id: 'rpg', games: [g(6, { first_release_date: recent, total_rating: 95, total_rating_count: 40 })] }
+      ],
+      now,
+      () => 0
+    )
+    expect(picked.map((x) => x.id).sort()).toEqual([2, 4])
+  })
+
+  it('caps the banner size', () => {
+    const many = Array.from({ length: 20 }, (_, i) => g(i, { first_release_date: recent, hypes: 10 }))
+    expect(pickFeatured([{ id: 'upcoming', games: many }], now, Math.random, 6)).toHaveLength(6)
+  })
+})
+
+describe('sampleInOrder', () => {
+  it('returns n distinct items in their original order', () => {
+    const items = Array.from({ length: 50 }, (_, i) => i)
+    const out = sampleInOrder(items, 20)
+    expect(out).toHaveLength(20)
+    expect([...out].sort((a, b) => a - b)).toEqual(out)
+    expect(new Set(out).size).toBe(20)
+  })
+  it('returns everything when there are fewer than n', () => {
+    expect(sampleInOrder([1, 2], 5)).toEqual([1, 2])
   })
 })

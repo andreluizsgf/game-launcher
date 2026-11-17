@@ -5,7 +5,7 @@ import { ButtonHints } from '../components/ButtonHints'
 import { formatReleaseDate, ratingTone } from '../format'
 import { useInput } from '../input/useInput'
 
-const HERO_COUNT = 5
+const HERO_COUNT = 6
 const HERO_ROTATE_MS = 9000
 
 interface Props {
@@ -39,9 +39,11 @@ export function Store({ active, libraryVersion, onOpen, onTab, onSettings, onSea
     fetchSections()
   }, [fetchSections, libraryVersion])
 
-  const sections = load.kind === 'ready' ? load.sections : []
-  // Featured: first trending games that have wide artwork.
-  const featured = (sections[0]?.games ?? []).filter((g) => g.artUrl).slice(0, HERO_COUNT)
+  const all = load.kind === 'ready' ? load.sections : []
+  // The main process sends a shuffled "featured" pick; without one (mock), fall back to the first row.
+  const featuredSection = all.find((s) => s.id === 'featured')
+  const sections = all.filter((s) => s !== featuredSection)
+  const featured = (featuredSection ?? sections[0])?.games.filter((g) => g.artUrl).slice(0, HERO_COUNT) ?? []
   const heroGame = featured[hero % Math.max(1, featured.length)] ?? null
   const col = (r: number) => cols[r] ?? 0
   const focused: StoreGame | null = row === 0 ? heroGame : (sections[row - 1]?.games[col(row)] ?? null)
