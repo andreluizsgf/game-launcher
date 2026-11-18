@@ -28,6 +28,13 @@ const BLOCKED_DIRS =
 
 const SOFT_PENALTY = /launcher|settings|config|editor|server|helper|benchmark/i
 
+/**
+ * Collections whose games only start through their own launcher: the game exes exit (or misbehave) when run
+ * directly, so the launcher wins over everything else. Mass Effect Legendary Edition: Game/Launcher/ next to
+ * Game/ME1..ME3/Binaries/Win64/MassEffectN.exe.
+ */
+const REQUIRED_LAUNCHERS = [/^masseffectlauncher\.exe$/i]
+
 export function normalizeName(s: string): string {
   return s
     .toLowerCase()
@@ -62,11 +69,13 @@ export function isBlocked(c: ExeCandidate): boolean {
 
 /**
  * Picks the most likely main executable of a game folder.
- * Order: drop blocked → prefer name match → avoid launcher-ish names → shallower → bigger.
+ * Order: drop blocked → required launcher → prefer name match → avoid launcher-ish names → shallower → bigger.
  */
 export function pickExe(candidates: ExeCandidate[], folderName: string): ExeCandidate | null {
   const allowed = candidates.filter((c) => !isBlocked(c))
   if (allowed.length === 0) return null
+  const required = allowed.find((c) => REQUIRED_LAUNCHERS.some((r) => r.test(baseName(c.relPath))))
+  if (required) return required
   const maxSize = Math.max(...allowed.map((c) => c.size), 1)
 
   const scored = allowed.map((c) => {

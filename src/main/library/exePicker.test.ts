@@ -48,6 +48,19 @@ describe('pickExe', () => {
     expect(r).not.toBeNull()
   })
 
+  it('picks the Mass Effect Legendary Edition launcher over the game exes', () => {
+    const r = pickExe(
+      [
+        { relPath: 'Game/Launcher/MassEffectLauncher.exe', size: 5_000_000 },
+        { relPath: 'Game/ME1/Binaries/Win64/MassEffect1.exe', size: 60_000_000 },
+        { relPath: 'Game/ME2/Binaries/Win64/MassEffect2.exe', size: 70_000_000 },
+        { relPath: 'Game/ME3/Binaries/Win64/MassEffect3.exe', size: 80_000_000 }
+      ],
+      'Mass Effect Legendary Edition'
+    )
+    expect(r?.relPath).toBe('Game/Launcher/MassEffectLauncher.exe')
+  })
+
   it('returns null when only blocked exes', () => {
     expect(pickExe([{ relPath: 'setup.exe', size: 1 }], 'X')).toBeNull()
   })
