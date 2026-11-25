@@ -5,12 +5,16 @@ directories:
 files:
   - out/**
   - package.json
+  # koffi (virtual Xbox pad, ADR 0018) ships prebuilt binaries for every OS: keep only the installer's.
+  - '!node_modules/koffi/build/koffi/!(win32_x64)/**'
+  - '!node_modules/koffi/{src,vendor,doc}/**'
 extraResources:
   # Window/taskbar icon at runtime (the exe icon comes from win.icon).
   - from: resources/icon.png
     to: icon.png
 asarUnpack:
   - node_modules/better-sqlite3/**
+  - node_modules/koffi/**
 win:
   icon: resources/icon.png
   target:

@@ -17,7 +17,9 @@ describe('parseReport', () => {
     data[7] = 0x20 | 0x02 // ✕ + d-pad east
     data[8] = 0x01 | 0x20 // L1 + Options
     data[9] = 0x01 // PS
+    data[4] = 255 // L2 fully pressed
     const s = parseReport(0x01, view(data))!
+    expect(s.triggers).toEqual([1, 0])
     expect(s.axes[1]).toBe(-1)
     expect(s.axes[3]).toBeCloseTo(0.99, 2)
     expect(s.buttons[CROSS]).toBe(true)
@@ -29,8 +31,9 @@ describe('parseReport', () => {
   })
 
   it('reads the Bluetooth simple report', () => {
-    const s = parseReport(0x01, view([128, 128, 128, 128, 0x40 | 0x08, 0, 0, 0, 0]))!
+    const s = parseReport(0x01, view([128, 128, 128, 128, 0x40 | 0x08, 0, 0, 0, 255]))!
     expect(s.buttons[CIRCLE]).toBe(true)
+    expect(s.triggers).toEqual([0, 1])
     expect(s.buttons.slice(12, 16)).toEqual([false, false, false, false]) // hat 8 = released
   })
 
@@ -38,7 +41,9 @@ describe('parseReport', () => {
     const data = new Array(77).fill(0)
     data.splice(1, 4, 0, 128, 128, 128) // left stick left
     data[8] = 0x20 | 0x07 // ✕ + d-pad north-west
+    data[6] = 51 // R2 a fifth of the way
     const s = parseReport(0x31, view(data))!
+    expect(s.triggers).toEqual([0, 0.2])
     expect(s.axes[0]).toBe(-1)
     expect(s.buttons[CROSS]).toBe(true)
     expect(s.buttons[UP]).toBe(true)

@@ -34,6 +34,13 @@ const LIVE_MS = 5000
 const RESCAN_MS = 3000
 
 const pads = new Map<HIDDevice, HidPad>()
+const reportListeners = new Set<(pad: HidPad) => void>()
+
+/** Every parsed input report, as it arrives (the virtual Xbox pad forwards them). */
+export function onHidReport(cb: (pad: HidPad) => void): () => void {
+  reportListeners.add(cb)
+  return () => reportListeners.delete(cb)
+}
 
 /** Generic Desktop / Gamepad — skips the pad's other interfaces (audio, etc.). */
 const isGamepad = (d: HIDDevice) =>
@@ -42,7 +49,7 @@ const isGamepad = (d: HIDDevice) =>
 async function attach(d: HIDDevice): Promise<void> {
   if (!isGamepad(d) || pads.has(d)) return
   const id = `${d.productName || 'Sony controller'} (HID ${d.vendorId.toString(16)}:${d.productId.toString(16)})`
-  const pad: HidPad = { id, state: { buttons: [], axes: [0, 0, 0, 0] }, lastReportAt: 0, battery: null }
+  const pad: HidPad = { id, state: { buttons: [], axes: [0, 0, 0, 0], triggers: [0, 0] }, lastReportAt: 0, battery: null }
   let askedFull = false
   pads.set(d, pad)
   try {
@@ -58,6 +65,7 @@ async function attach(d: HIDDevice): Promise<void> {
     if (s) {
       pad.state = s
       pad.lastReportAt = performance.now()
+      reportListeners.forEach((cb) => cb(pad))
     }
     pad.battery = parseBattery(reportId, data) ?? pad.battery
     // Bluetooth starts in the short report (no battery). Reading the calibration feature report switches

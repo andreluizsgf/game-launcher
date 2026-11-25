@@ -9,19 +9,21 @@ export interface PadState {
   buttons: boolean[]
   /** Left X, left Y, right X, right Y in −1..1. */
   axes: number[]
+  /** Analog L2, R2 in 0..1 (the virtual Xbox pad's triggers; the launcher reads the buttons). */
+  triggers: number[]
 }
 
 export const SONY_VENDOR_ID = 0x054c
 
-/** Payload offsets of the sticks and the first button byte, or null for reports we don't read. */
-function offsets(reportId: number, length: number): { sticks: number; buttons: number } | null {
+/** Payload offsets of the sticks, the analog triggers and the first button byte, or null for reports we don't read. */
+function offsets(reportId: number, length: number): { sticks: number; triggers: number; buttons: number } | null {
   if (reportId === 0x01) {
     // USB full report (63 bytes): sticks, L2, R2, seq, buttons.
     // Bluetooth "simple" report (9 bytes, before any app enables full mode): sticks, buttons, L2, R2.
-    return length > 16 ? { sticks: 0, buttons: 7 } : { sticks: 0, buttons: 4 }
+    return length > 16 ? { sticks: 0, triggers: 4, buttons: 7 } : { sticks: 0, triggers: 7, buttons: 4 }
   }
   // Bluetooth full report (after Steam & co. switch the pad to it): one extra byte first.
-  if (reportId === 0x31) return { sticks: 1, buttons: 8 }
+  if (reportId === 0x31) return { sticks: 1, triggers: 5, buttons: 8 }
   return null
 }
 
@@ -39,7 +41,7 @@ const HAT: Record<number, [up: boolean, right: boolean, down: boolean, left: boo
 
 export function parseReport(reportId: number, data: DataView): PadState | null {
   const at = offsets(reportId, data.byteLength)
-  if (!at || data.byteLength < at.buttons + 3) return null
+  if (!at || data.byteLength < Math.max(at.buttons + 3, at.triggers + 2)) return null
   const axis = (i: number) => (data.getUint8(at.sticks + i) - 128) / 128
   const b0 = data.getUint8(at.buttons)
   const b1 = data.getUint8(at.buttons + 1)
@@ -48,6 +50,7 @@ export function parseReport(reportId: number, data: DataView): PadState | null {
   const bit = (v: number, n: number) => (v & (1 << n)) !== 0
   return {
     axes: [axis(0), axis(1), axis(2), axis(3)],
+    triggers: [data.getUint8(at.triggers) / 255, data.getUint8(at.triggers + 1) / 255],
     buttons: [
       bit(b0, 5), // ✕
       bit(b0, 6), // ○

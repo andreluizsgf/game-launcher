@@ -206,6 +206,13 @@ export function App() {
             notify('Instalador na Lixeira')
             await lib.reload(g.id)
           }}
+          onToggleXinput={async (g) => {
+            const on = g.inputMode !== 'xinput'
+            const res = await window.api.setInputMode(g.id, on ? 'xinput' : 'auto')
+            if (!res.ok) return notify(res.error)
+            await lib.reload()
+            notify(on ? 'Controle de Xbox ligado pra esse jogo' : 'Controle de Xbox desligado')
+          }}
           onEmulatorAction={async (g, action) => {
             // Back to the game first: emulators pause while the menu has focus (PCSX2 also takes these as
             // hotkeys, which need its window focused).

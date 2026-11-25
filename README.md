@@ -139,6 +139,21 @@ DualSense por **USB ou Bluetooth** (pareie pelo Windows: segure **PS + Create** 
 
 O botão **PS**: com um jogo aberto, mostra o launcher por cima e **pausa o jogo** enquanto o menu está aberto (dá pra voltar ao jogo ou fechá-lo; a pausa pode ser desligada em Configurações → *Pausar o jogo no menu do PS*, útil em jogos online, que podem desconectar); na tela inicial, abre o menu de energia (suspender, reiniciar, desligar, fechar o app); em outras telas, volta pro início.
 
+### Jogos que só aceitam controle de Xbox
+
+Alguns jogos de PC (ex.: Hi-Fi Rush) ignoram o DualSense e só aceitam controle de Xbox. O launcher pode fazer o
+DualSense aparecer como um controle de Xbox para esses jogos, sem precisar do DS4Windows.
+
+1. Instale uma vez o driver **ViGEmBus**: baixe o instalador `ViGEmBus_…_x64_x86_arm64.exe` em
+   <https://github.com/nefarius/ViGEmBus/releases> e rode (pede administrador). Se o DS4Windows já foi instalado
+   alguma vez, o driver provavelmente já está aí.
+2. Nos detalhes do jogo (△), ligue **Controle de Xbox**. Vale a partir do próximo lançamento, ou na hora se o jogo
+   já estiver aberto.
+
+Com isso ligado, o jogo vê um controle de Xbox enquanto está aberto. O botão **PS** continua abrindo o menu do
+launcher, e com o menu aberto o controle virtual fica parado. Ligue só nos jogos que precisam: num jogo que aceita
+os dois controles, o input chegaria em dobro. Ainda não há vibração.
+
 ## 4. Problemas comuns
 
 | Sintoma | O que fazer |
@@ -148,6 +163,7 @@ O botão **PS**: com um jogo aberto, mostra o launcher por cima e **pausa o jogo
 | Download não aparece no app | Confira a Interface Web do qBittorrent (porta, usuário/senha). **qBittorrent Interface Web** em Configurações diz se conectou. |
 | Repack instalou em outro lugar | Reinstale escolhendo `<pasta do jogo>\Jogo`, ou mova a pasta instalada pra dentro da pasta de jogos. |
 | Controle conectado mas não mexe | Aperte qualquer botão; se continuar, desconecte e conecte de novo (o app procura o controle a cada 3 s). |
+| "Instale o ViGEmBus…" ao abrir um jogo | O **Controle de Xbox** está ligado nesse jogo e o driver não foi encontrado: veja *Jogos que só aceitam controle de Xbox*. |
 | ROM não aparece | A subpasta precisa ter o nome do console (`ps2`, `snes`, `gba`…) e a extensão ser de ROM daquele console. |
 | Jogo da Steam/Epic não volta pro launcher ao fechar | Espere ~10 s; o app confere os processos a cada 5 s. |
 | Não aparece atualização | **Configurações → Versão → verificar agora** mostra o erro, se houver. |

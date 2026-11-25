@@ -36,6 +36,8 @@ interface Props {
   onStoreInstall(g: Game): void
   /** Running in RetroArch: save/load state, fast-forward. */
   onEmulatorAction(g: Game, action: EmulatorAction): void
+  /** Flips the virtual Xbox pad for games that only read XInput. */
+  onToggleXinput(g: Game): void
   onIdentify(g: Game): void
   onRemove(g: Game): void
   onClose(): void
@@ -50,6 +52,7 @@ type Item = {
     | 'resume'
     | EmulatorAction
     | 'stop'
+    | 'xinput'
     | 'achievements'
     | 'telegram'
     | 'identify'
@@ -63,8 +66,8 @@ type Item = {
 
 export function GameDetail(props: Props) {
   const { game, running, installing, download, gamesRoot, telegramPeers, onLaunch, onResume, onStop } = props
-  const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onEmulatorAction, onIdentify, onRemove, onClose } =
-    props
+  const { onUninstall, onInstall, onCleanInstaller, onStoreInstall, onEmulatorAction, onToggleXinput } = props
+  const { onIdentify, onRemove, onClose } = props
   // Destructive items need a second press.
   const [confirm, setConfirm] = useState<'stop' | 'uninstall' | 'cleanInstaller' | null>(null)
   const [achievements, setAchievements] = useState<GameAchievements | null>(null)
@@ -115,6 +118,10 @@ export function GameDetail(props: Props) {
           : storeOwned
             ? [{ id: 'storeInstall', label: `Instalar na ${store}` } as Item]
             : []),
+    // PC games only: emulators read the DualSense themselves.
+    ...(installed && playable && !emulated
+      ? [{ id: 'xinput', label: `Controle de Xbox · ${game.inputMode === 'xinput' ? 'ligado' : 'desligado'}` } as Item]
+      : []),
     ...(achievements
       ? [{ id: 'achievements', label: `Conquistas · ${achievements.unlocked}/${achievements.total}` } as Item]
       : []),
@@ -171,6 +178,7 @@ export function GameDetail(props: Props) {
       else if (it.id === 'uninstall') onUninstall(game)
       else onCleanInstaller(game)
     }
+    else if (it.id === 'xinput') onToggleXinput(game)
     else if (it.id === 'telegram') openTelegram()
     else if (it.id === 'achievements') setAchOpen(true)
     else if (it.id === 'identify') onIdentify(game)
@@ -257,6 +265,12 @@ export function GameDetail(props: Props) {
             <p className="detail-note">
               No controle: o <b>touchpad</b> (clique) é o Select; segure <b>Create</b> + R1 salva, + L1 carrega, + R2 acelera, + ←/→ troca o slot
               {emulated.emulator === 'retroarch' ? ', + Options abre o menu do RetroArch' : ''}.
+            </p>
+          )}
+          {zone === 'menu' && items[sel]?.id === 'xinput' && (
+            <p className="detail-note">
+              Pra jogos que só aceitam controle de Xbox: o DualSense aparece pro jogo como um. O botão PS continua
+              abrindo o menu. Precisa do <b>ViGEmBus</b> instalado.
             </p>
           )}
           {confirm === 'stop' && <p className="detail-note">O progresso não salvo será perdido.</p>}

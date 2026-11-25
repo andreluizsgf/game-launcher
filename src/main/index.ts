@@ -4,7 +4,7 @@ import { pathToFileURL } from 'url'
 import { GamesRepo } from './db/games'
 import { openDb } from './db/schema'
 import { registerIpc } from './ipc'
-import { createGameSessions, releaseShortcuts } from './sessions'
+import { closeVirtualPad, createGameSessions, releaseShortcuts } from './sessions'
 import { applyOpenAtLogin, AUTOSTART_ARG, loadSettings } from './settings'
 import { createMainWindow } from './window'
 
@@ -35,6 +35,7 @@ app.whenReady().then(async () => {
 
   app.on('before-quit', () => {
     releaseShortcuts()
+    closeVirtualPad()
     runner.thawAllSync()
     runner.stopAll()
     db.close()

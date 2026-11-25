@@ -43,6 +43,7 @@ src/main/        processo principal (Node): tudo que toca disco, rede, processos
   telegram/        bot do Telegram → .torrent → qBittorrent
   achievements/    leitura do Achievement Watcher Next
   system/          energia (suspender/reiniciar/desligar)
+  vpad/            controle de Xbox 360 virtual (ViGEmBus via koffi) para jogos só-XInput
   sessions.ts      hooks do Runner: playtime, entregar a tela ao jogo, overlay
   window.ts        janela, WebHID do DualSense, minimizar/trazer pra frente
 src/renderer/src/ React
@@ -158,7 +159,8 @@ repos/andreluizsgf/game-launcher-releases/contents/README.md`, passando o `sha` 
   - foco de janela;
   - atalhos do RetroArch e do PCSX2 e o SendKeys;
   - o RPCS3;
-  - o OAuth da Epic.
+  - o OAuth da Epic;
+  - o controle de Xbox virtual (ViGEmBus).
 
   Ao mexer nisso, diga ao usuário o que precisa ser testado no PC.
 - Desinstalar só move para a Lixeira e só pastas que estão **diretamente** dentro da pasta de jogos

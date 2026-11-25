@@ -1,5 +1,7 @@
 import type { EmulatorId } from './systems'
+import type { XusbReport } from './xusb'
 
+/** How the game gets the pad. 'xinput': the DualSense is fed to a virtual Xbox 360 pad (ADR 0018). */
 export type InputMode = 'auto' | 'xinput' | 'kbm' | 'native'
 
 /** Where an installed game comes from: a folder in the games folder, or a store's own library. */
@@ -286,6 +288,12 @@ export interface LauncherApi {
   storeInstall(gameId: number): Promise<Result<null>>
   /** Save/load state, fast-forward… on the running RetroArch game. */
   emulatorAction(gameId: number, action: EmulatorAction): Promise<Result<null>>
+  /** 'xinput' turns on the virtual Xbox pad for this game (live if it's the one running). */
+  setInputMode(gameId: number, mode: InputMode): Promise<Result<null>>
+  /** DualSense state for the virtual Xbox pad; fire-and-forget, sent per input report. */
+  sendPadReport(report: XusbReport): void
+  /** The virtual Xbox pad was plugged (true) or unplugged (false). */
+  onVirtualPad(cb: (active: boolean) => void): () => void
   getSettings(): Promise<Settings>
   setSettings(patch: SettingsPatch): Promise<Settings>
   setIgdbSecret(secret: string): Promise<Settings>

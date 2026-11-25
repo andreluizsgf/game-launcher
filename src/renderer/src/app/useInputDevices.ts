@@ -4,6 +4,7 @@ import { startHidPads } from '../input/hidPads'
 import { startKeyboard } from '../input/keyboard'
 import { startMouseTracking } from '../input/mode'
 import { padNotices } from '../input/padNotices'
+import { startVirtualPadFeed } from '../input/virtualPad'
 
 /** Starts pad (Gamepad API + HID), keyboard and mouse input; `onGuide` fires on the PS button. */
 export function useInputDevices(notify: (msg: string) => void, onGuide: () => void): PadStatus {
@@ -24,11 +25,13 @@ export function useInputDevices(notify: (msg: string) => void, onGuide: () => vo
       () => guide.current()
     )
     const stopHid = startHidPads()
+    const stopVpad = startVirtualPadFeed()
     const stopKb = startKeyboard()
     const stopMouse = startMouseTracking()
     return () => {
       stopPad()
       stopHid()
+      stopVpad()
       stopKb()
       stopMouse()
     }

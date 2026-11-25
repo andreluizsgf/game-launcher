@@ -111,6 +111,8 @@ Busca (IGDB) → "Baixar" → TelegramService manda o título ao bot configurado
   - `gamepad.ts` (Gamepad API, ou HID para DualSense) e `keyboard.ts` emitem `Action`s no `inputBus`.
   - Só o handler ativo mais recente (pilha) recebe as ações.
   - Com um jogo em foco, o pad não move o launcher; só o PS é observado (ADR 0008).
+  - Jogos com `inputMode = 'xinput'`: `input/virtualPad.ts` repassa cada relatório HID do DualSense, já em
+    formato XUSB (`shared/xusb.ts`), ao main, que alimenta um Xbox 360 virtual no ViGEmBus (`main/vpad/`, ADR 0018).
 - **Hooks em `app/`.** `useLibrary` (lista e foco), `useGameSession` (jogo rodando, overlay),
   `useSystemStatus` (downloads, update, disco), `useInputDevices` (pad e botão PS), `useToast`.
 

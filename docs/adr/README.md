@@ -25,3 +25,4 @@ Cada ADR registra uma decisão estrutural: o contexto, o que foi decidido e o qu
 | [0015](0015-conquistas-via-awn.md) | Conquistas lidas do Achievement Watcher Next | aceita |
 | [0016](0016-instalar-repacks.md) | Repacks: instalar em `Jogo` e limpar o instalador | aceita |
 | [0017](0017-rejeitado-launcher-do-jogo.md) | Seletor de exe / launcher próprio do jogo | rejeitada |
+| [0018](0018-controle-de-xbox-virtual.md) | DualSense como Xbox 360 virtual via ViGEmBus, por jogo | aceita |

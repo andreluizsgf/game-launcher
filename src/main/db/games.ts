@@ -299,6 +299,10 @@ export class GamesRepo {
       .run(coverPath, artPath, gameId)
   }
 
+  setInputMode(gameId: number, mode: InputMode): void {
+    this.db.prepare('UPDATE games SET input_mode = ? WHERE id = ?').run(mode, gameId)
+  }
+
   /** Swaps in newer art (a null keeps what's there). */
   replaceArt(gameId: number, coverPath: string | null, artPath: string | null): void {
     this.db
